@@ -1,0 +1,69 @@
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import requests
+import json
+
+# === df_train (уже как в предыдущем примере) ===
+start_time = datetime.now().replace(microsecond=0)
+timestamps_train = [start_time + timedelta(minutes=i) for i in range(20)]
+sensor_1_train = np.random.uniform(0, 100, size=20)
+sensor_2_train = np.random.uniform(0, 100, size=20)
+
+df_train = pd.DataFrame({
+    'timestamp': timestamps_train,
+    'sensor_1': sensor_1_train.round(2),
+    'sensor_2': sensor_2_train.round(2)
+})
+
+# === df_test (следующие 20 записей после окончания df_train) ===
+last_time_train = df_train['timestamp'].iloc[-1]  # последнее время из df_train
+timestamps_test = [last_time_train + timedelta(minutes=i+1) for i in range(20)]
+sensor_1_test = np.random.uniform(0, 100, size=20)
+sensor_2_test = np.random.uniform(0, 100, size=20)
+
+df_test = pd.DataFrame({
+    'timestamp': timestamps_test,
+    'sensor_1': sensor_1_test.round(2),
+    'sensor_2': sensor_2_test.round(2)
+})
+
+# === Вывод ===
+print("df_train:")
+print(df_train.head())
+print("\ndf_test:")
+print(df_test.head())
+
+
+json_df_train = df_train.to_json(orient='records')
+json_df_test = df_test.to_json(orient='records')
+
+# Параметры модели
+params = {
+    'epochs': 10,
+    'batch_size': 32,
+    'learning_rate': 0.001
+}
+
+
+json_params = json.dumps(params, indent=2, ensure_ascii=False)
+
+
+# Формируем payload
+payload = {
+    'model_type': 'sarina',
+    'auto_params': True,
+    'params': json_params,
+    'df_train': json_df_train,
+    'df_test': json_df_test,
+    'duration': 'PT5M'
+}
+
+response = requests.post(
+    'http://localhost:8000/api/v1/model_process',
+    json=payload,
+    headers={'Content-Type': 'application/json'}
+)
+
+print("Status Code:", response.status_code)
+print("Response JSON:", response.json())
