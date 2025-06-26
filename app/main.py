@@ -1,4 +1,6 @@
 import streamlit as st
+from dashboard.upload import upload
+from dashboard.info_about_dataframe import info_about_dataframe
 
 # Устанавливаем шрифт и убираем отступы
 st.markdown("""
@@ -30,19 +32,21 @@ st.set_page_config(page_title="Прогнозирование", layout="wide")
 top_cols = st.columns([2, 2, 2, 2, 2, 2])
 
 with top_cols[0]:
-    st.button("# Загрузить файл")
+    df = upload()
+
+features_size, tuples_size, first_tuple, last_tuple = info_about_dataframe(df)
 
 with top_cols[1]:
-    st.markdown("Кол-во записей: **450**")
+    st.markdown(f"Кол-во записей: **{tuples_size if tuples_size is not None else 'Нет информации'}**")
 
 with top_cols[2]:
-    st.markdown("Количество признаков: **9**")
+    st.markdown(f"Количество признаков: **{features_size if features_size is not None else 'Нет информации'}**")
 
 with top_cols[3]:
-    st.markdown("Первая запись: **30.01.25**")
+    st.markdown(f"Первая запись: **{first_tuple if first_tuple is not None else 'Нет информации'}**")
 
 with top_cols[4]:
-    st.markdown("Последняя запись: **30.01.25**")
+    st.markdown(f"Последняя запись: **{last_tuple if last_tuple is not None else 'Нет информации'}**")
 
 # Основной блок — 9 + 3 (левая панель + правая панель)
 main_cols = st.columns([9, 3])
