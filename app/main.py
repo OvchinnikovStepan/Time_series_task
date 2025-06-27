@@ -1,6 +1,9 @@
 import streamlit as st
+import pandas as pd
 from dashboard.upload import upload
 from dashboard.info_about_dataframe import info_about_dataframe
+from dashboard.select_time_interval import start_date, end_date, filter_dataframe
+from dashboard.plot_interactive_with_selection import plot_interactive_with_selection
 
 # Устанавливаем шрифт и убираем отступы
 st.markdown("""
@@ -21,6 +24,12 @@ st.markdown("""
         border: 1px solid #ccc;
         background-color: #e0e0e0;
         border-radius: 4px;
+    }
+
+    /* Фиксированная высота для data_editor */
+    .stDataFrame {
+        height: 250px !important;
+        overflow-y: auto;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -53,56 +62,93 @@ main_cols = st.columns([9, 3])
 
 with main_cols[0]:
     # График
-    st.markdown(
-        """<div class="block" style="height: 420px;"></div>""",
-        unsafe_allow_html=True
-    )
-
-    # Предпросмотр и параметры — нижняя часть 9 колонок: 6+6
-    preview_cols = st.columns([6, 6])
-
-    with preview_cols[0]:
-        st.markdown("#### Предпросмотр:")
+    training_df = None
+    if df is not None and not df.empty:
+        # Отображение графика с полным df, если filtered_df еще не определен
+        if 'filtered_df' in st.session_state and st.session_state['filtered_df'] is not None:
+            filtered_df = st.session_state['filtered_df']
+        else:
+            filtered_df = df
+        if 'selected_sensors' in st.session_state and st.session_state['selected_sensors']:
+            training_df = plot_interactive_with_selection(filtered_df, selected_sensors=st.session_state['selected_sensors'])
+        else:
+            training_df = plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist())  # По умолчанию все датчики
+    else:
         st.markdown(
-            """<div class="block" style="height: 300px;"></div>""",
+            """<div class="block" style="height: 420px;"></div>""",
             unsafe_allow_html=True
         )
 
-    with preview_cols[1]:
+    # Нижняя часть: График, Параметры, Предпросмотр в одной строке
+    lower_cols = st.columns([6, 6])  # Соотношение 6:2:4 для графика, параметров и предпросмотра
+    with lower_cols[1]:
         st.markdown("#### Параметры:")
-        st.markdown(
-            """<div class="block" style="height: 300px;"></div>""",
-            unsafe_allow_html=True
-        )
+        if df is not None and not df.empty:
+            sensor_df = pd.DataFrame({'Датчики': df.columns, 'Отображать': [True] * len(df.columns)})
+            edited_sensor_df = st.data_editor(sensor_df, key="sensor_selector", on_change=lambda: st.rerun())
+            if 'selected_sensors' not in st.session_state or st.session_state['selected_sensors'] != edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist():
+                st.session_state['selected_sensors'] = edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist()
+        else:
+            st.markdown(
+                "Нет информации",
+                unsafe_allow_html=True
+            )
+    with lower_cols[0]:
+        st.markdown("#### Предпросмотр:")
+        if df is not None:
+            st.dataframe(df)
+        else:
+            st.markdown(
+                "Нет информации",
+                unsafe_allow_html=True
+            )
 
 with main_cols[1]:
     # Правая панель — 3 колонки
-    st.markdown("##  Прогнозирование")
+    st.markdown("## Прогнозирование")
     st.markdown("#### Область прогнозирования")
 
+    # Создаем колонки для дат и времени
     start_cols = st.columns(2)
     with start_cols[0]:
-        st.button("Начало")
+        start_datetime = start_date(df, context="display_panel")
     with start_cols[1]:
-        st.button("Конец")
+        end_datetime = end_date(df, context="display_panel")
 
+    if start_datetime is not None and end_datetime is not None:
+        filtered_df = filter_dataframe(start_datetime, end_datetime, df)
+        st.session_state['filtered_df'] = filtered_df
+    else:
+        if 'filtered_df' in st.session_state:
+            del st.session_state['filtered_df']
+
+    # Целевые параметры (выпадающий список с одним выбором)
     st.markdown("#### Целевые параметры:")
-    st.markdown(
-        """<div class="block" style="height: 184px;"></div>""",
-        unsafe_allow_html=True
-    )
+    target_sensor = None
+    if df is not None and not df.empty:
+        target_sensor = st.selectbox("Выберите целевой признак", options=df.columns.tolist(), index=0, key="target_sensor")
+    else:
+        st.markdown(
+                "Нет информации",
+                unsafe_allow_html=True
+            )
+
     st.markdown("#### Выбрать модель")
     st.markdown("""
-<select style="width:100%; padding:8px; font-size:16px; font-family:Montserrat; font-weight:600;">
+<select style="width:100%; padding:8px; font-size:16px; font-family:Montserrat; font-weight:600; background-color: #2a2a2a; color: #ffffff; border: 1px solid #333; border-radius: 4px;">
   <option>Модель 1</option>
   <option>Модель 2</option>
   <option>Модель 3</option>
 </select>
 """, unsafe_allow_html=True)
-    st.markdown("")
 
+    st.markdown(" ")
 
     st.checkbox("Включить автоподбор параметров")
 
     st.markdown(" ")
-    st.button("Начать прогнозирование")
+    if st.button("Начать прогнозирование"):
+        if training_df is not None and target_sensor is not None:
+            st.write(f"Прогнозирование выполнено на основе {training_df.shape[0]} записей с целевой переменной: {target_sensor}")
+        else:
+            st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
