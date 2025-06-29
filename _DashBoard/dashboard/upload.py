@@ -61,14 +61,11 @@ def upload():
             outlier_percentage = (total_outliers / total_values) * 100 if total_values > 0 else 0
             outlier_percentage = round(outlier_percentage, 2)
 
-            if outlier_percentage > 0:
-                st.write(f"В датасете присутствуют выбросы: {outlier_percentage}% от всех значений.")
-
-            return df
+            return df, outlier_percentage
 
         except Exception as e:
             st.error(f"Ошибка при обработке данных: {str(e)}")
-            return None
+            return None, None
         
         
-    return None
+    return None, None

@@ -31,7 +31,6 @@ st.markdown("""
         border-radius: 4px;
     }
 
-    /* Фиксированная высота для data_editor */
     .stDataFrame {
         height: 250px !important;
         overflow-y: auto;
@@ -40,128 +39,160 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if page == "Прогнозирование":
-    # Настройка страницы
     st.set_page_config(page_title="Прогнозирование", layout="wide")
 
-    # Верхняя панель — 12 колонок: 2+2+2+2+2+2
-    top_cols = st.columns([2, 2, 2, 2, 2, 2])
+    df, outlier_percentage = upload()
 
-    with top_cols[0]:
-        df = upload()
+    top_cols = st.columns([2, 2, 2, 2, 2])
+
+    if df is not None:
+        current_df_hash = hash(pd.util.hash_pandas_object(df, index=True).sum())
+        if st.session_state.get('last_df_hash') != current_df_hash:
+            st.session_state['filtered_df'] = df
+            st.session_state['selected_sensors'] = df.columns.tolist()
+            st.session_state['sensor_editor_temp'] = df.columns.tolist()
+            st.session_state['target_sensor'] = df.columns[0]
+            st.session_state['last_df_hash'] = current_df_hash
 
     features_size, tuples_size, first_tuple, last_tuple = info_about_dataframe(df)
 
+    with top_cols[0]:
+        st.markdown(f"Кол-во записей: {tuples_size if tuples_size is not None else 'Нет информации'}")
+
     with top_cols[1]:
-        st.markdown(f"Кол-во записей: **{tuples_size if tuples_size is not None else 'Нет информации'}**")
+        st.markdown(f"Количество признаков: {features_size if features_size is not None else 'Нет информации'}")
 
     with top_cols[2]:
-        st.markdown(f"Количество признаков: **{features_size if features_size is not None else 'Нет информации'}**")
+        st.markdown(f"Первая запись: {first_tuple if first_tuple is not None else 'Нет информации'}")
 
     with top_cols[3]:
-        st.markdown(f"Первая запись: **{first_tuple if first_tuple is not None else 'Нет информации'}**")
+        st.markdown(f"Последняя запись: {last_tuple if last_tuple is not None else 'Нет информации'}")
 
     with top_cols[4]:
-        st.markdown(f"Последняя запись: **{last_tuple if last_tuple is not None else 'Нет информации'}**")
+        st.markdown(f"Количество выбросов: {f'{outlier_percentage}% от всех значений'  if outlier_percentage is not None else 'Нет информации'}")
 
-    # Основной блок — 9 + 3 (левая панель + правая панель)
     main_cols = st.columns([9, 3])
 
     with main_cols[0]:
-        # График
         training_df = None
+
         if df is not None and not df.empty:
-            # Отображение графика с полным df, если filtered_df еще не определен
-            if 'filtered_df' in st.session_state and st.session_state['filtered_df'] is not None:
+            if 'filtered_df' in st.session_state:
                 filtered_df = st.session_state['filtered_df']
             else:
                 filtered_df = df
-            if 'selected_sensors' in st.session_state and st.session_state['selected_sensors']:
-                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=st.session_state['selected_sensors'])
-            else:
-                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist())  # По умолчанию все датчики
-        else:
-            st.markdown(
-                """<div class="block" style="height: 420px;"></div>""",
-                unsafe_allow_html=True
-            )
 
-        # Нижняя часть: График, Параметры, Предпросмотр в одной строке
-        lower_cols = st.columns([6, 6])  # Соотношение 6:2:4 для графика, параметров и предпросмотра
+            selected_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
+
+            if selected_sensors:
+                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=selected_sensors)
+            else:
+                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist())
+        else:
+            st.markdown("""<div class="block" style="height: 420px;"></div>""", unsafe_allow_html=True)
+
+        lower_cols = st.columns([6, 6])
         with lower_cols[1]:
             st.markdown("#### Параметры:")
             if df is not None and not df.empty:
-                sensor_df = pd.DataFrame({'Датчики': df.columns, 'Отображать': [True] * len(df.columns)})
-                edited_sensor_df = st.data_editor(sensor_df, key="sensor_selector", on_change=lambda: st.rerun())
-                if 'selected_sensors' not in st.session_state or st.session_state['selected_sensors'] != edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist():
-                    st.session_state['selected_sensors'] = edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist()
+                sensor_df = pd.DataFrame({
+                    'Датчики': df.columns,
+                    'Отображать': [col in st.session_state.get('selected_sensors', df.columns.tolist()) for col in df.columns]
+                })
+                edited_sensor_df = st.data_editor(sensor_df, key="sensor_selector")
+                st.session_state['sensor_editor_temp'] = edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist()
             else:
-                st.markdown(
-                    "Нет информации",
-                    unsafe_allow_html=True
-                )
+                st.markdown("Нет информации", unsafe_allow_html=True)
+
         with lower_cols[0]:
             st.markdown("#### Предпросмотр:")
             if df is not None:
                 st.dataframe(df)
             else:
-                st.markdown(
-                    "Нет информации",
-                    unsafe_allow_html=True
-                )
+                st.markdown("Нет информации", unsafe_allow_html=True)
 
-    with main_cols[1]:
-        # Правая панель — 3 колонки
-        st.markdown("## Прогнозирование")
-        st.markdown("#### Область прогнозирования")
+        with main_cols[1]:
+            st.markdown("## Прогнозирование")
+            st.markdown("#### Область прогнозирования")
 
-        # Создаем колонки для дат и времени
-        start_cols = st.columns(2)
-        with start_cols[0]:
-            start_datetime = start_date(df, context="display_panel")
-        with start_cols[1]:
-            end_datetime = end_date(df, context="display_panel")
+            # Инициализация ключей для сброса (используем уникальный счетчик для принудительного обновления виджетов)
+            if 'reset_counter' not in st.session_state:
+                st.session_state['reset_counter'] = 0
 
-        if start_datetime is not None and end_datetime is not None:
-            filtered_df = filter_dataframe(start_datetime, end_datetime, df)
-            st.session_state['filtered_df'] = filtered_df
-        else:
-            if 'filtered_df' in st.session_state:
-                del st.session_state['filtered_df']
+            # Формируем уникальные ключи для виджетов, чтобы принудительно перерисовать их после сброса
+            context = f"display_panel_{st.session_state['reset_counter']}"
 
-        # Целевые параметры (выпадающий список с одним выбором)
-        st.markdown("#### Целевые параметры:")
-        target_sensor = None
-        if df is not None and not df.empty:
-            target_sensor = st.selectbox("Выберите целевой признак", options=df.columns.tolist(), index=0, key="target_sensor")
-        else:
-            st.markdown(
-                    "Нет информации",
-                    unsafe_allow_html=True
-                )
+            start_cols = st.columns(2)
+            with start_cols[0]:
+                start_datetime = start_date(df, context=context)
+            with start_cols[1]:
+                end_datetime = end_date(df, context=context)
 
-        st.markdown("#### Выбрать модель")
-        st.markdown("""
-    <select style="width:100%; padding:8px; font-size:16px; font-family:Montserrat; font-weight:600; background-color: #2a2a2a; color: #ffffff; border: 1px solid #333; border-radius: 4px;">
-    <option>Модель 1</option>
-    <option>Модель 2</option>
-    <option>Модель 3</option>
-    </select>
-    """, unsafe_allow_html=True)
+            # Создаем колонки для кнопок "Применить фильтр" и "Сбросить фильтр"
+            button_cols = st.columns(2)
+            with button_cols[0]:
+                if st.button("Применить фильтр"):
+                    if start_datetime is not None and end_datetime is not None:
+                        st.session_state['filtered_df'] = filter_dataframe(start_datetime, end_datetime, df)
+                    else:
+                        st.session_state['filtered_df'] = df
 
-        st.markdown(" ")
+                    if 'sensor_editor_temp' in st.session_state:
+                        st.session_state['selected_sensors'] = st.session_state['sensor_editor_temp']
+                    else:
+                        st.session_state['selected_sensors'] = df.columns.tolist()
 
-        st.checkbox("Включить автоподбор параметров")
+                    st.rerun()
 
-        st.markdown(" ")
-        if st.button("Начать прогнозирование"):
-            if training_df is not None and target_sensor is not None:
-                st.write(f"Прогнозирование выполнено на основе {training_df.shape[0]} записей с целевой переменной: {target_sensor}")
+            with button_cols[1]:
+                if st.button("Сбросить фильтр"):
+                    # Сбрасываем фильтрованный DataFrame до исходного
+                    st.session_state['filtered_df'] = df
+                    # Сбрасываем выбранные датчики до всех столбцов DataFrame
+                    st.session_state['selected_sensors'] = df.columns.tolist()
+                    st.session_state['sensor_editor_temp'] = df.columns.tolist()
+                    # Увеличиваем счетчик сброса, чтобы создать новые уникальные ключи для виджетов
+                    st.session_state['reset_counter'] = st.session_state.get('reset_counter', 0) + 1
+                    # Очищаем старые ключи session_state для виджетов даты и времени
+                    old_context = f"display_panel_{st.session_state['reset_counter'] - 1}"
+                    keys_to_clear = [
+                        f'start_date_{old_context}',
+                        f'start_time_{old_context}',
+                        f'end_date_{old_context}',
+                        f'end_time_{old_context}'
+                    ]
+                    for key in keys_to_clear:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    # Перезапускаем приложение для обновления интерфейса
+                    st.rerun()
+
+            st.markdown("#### Целевые параметры:")
+            target_sensor = None
+            if df is not None and not df.empty:
+                target_sensor = st.selectbox("Выберите целевой признак", options=df.columns.tolist(), index=0, key="target_sensor")
             else:
-                st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
+                st.markdown("Нет информации", unsafe_allow_html=True)
+
+            st.markdown("#### Выбрать модель")
+            st.markdown("""
+            <select style="width:100%; padding:8px; font-size:16px; font-family:Montserrat; font-weight:600; background-color: #2a2a2a; color: #ffffff; border: 1px solid #333; border-radius: 4px;">
+            <option>Модель 1</option>
+            <option>Модель 2</option>
+            <option>Модель 3</option>
+            </select>
+            """, unsafe_allow_html=True)
+
+            st.checkbox("Включить автоподбор параметров")
+
+            st.markdown(" ")
+            if st.button("Начать прогнозирование"):
+                if training_df is not None and target_sensor is not None:
+                    st.write(f"Прогнозирование выполнено на основе {training_df.shape[0]} записей с целевой переменной: {target_sensor}")
+                else:
+                    st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
 
 elif page == "Анализ данных":
-
-     # Верхняя панель — 12 колонок: 2+2+2+2+2+2
     top_cols = st.columns([2, 2, 2, 2, 2, 2])
 
     with top_cols[0]:
@@ -170,97 +201,75 @@ elif page == "Анализ данных":
     features_size, tuples_size, first_tuple, last_tuple = info_about_dataframe(df)
 
     with top_cols[1]:
-        st.markdown(f"Кол-во записей: **{tuples_size if tuples_size is not None else 'Нет информации'}**")
+        st.markdown(f"Кол-во записей: {tuples_size if tuples_size is not None else 'Нет информации'}")
 
     with top_cols[2]:
-        st.markdown(f"Количество признаков: **{features_size if features_size is not None else 'Нет информации'}**")
+        st.markdown(f"Количество признаков: {features_size if features_size is not None else 'Нет информации'}")
 
     with top_cols[3]:
-        st.markdown(f"Первая запись: **{first_tuple if first_tuple is not None else 'Нет информации'}**")
+        st.markdown(f"Первая запись: {first_tuple if first_tuple is not None else 'Нет информации'}")
 
     with top_cols[4]:
-        st.markdown(f"Последняя запись: **{last_tuple if last_tuple is not None else 'Нет информации'}**")
+        st.markdown(f"Последняя запись: {last_tuple if last_tuple is not None else 'Нет информации'}")
 
-
-    # Настройка страницы
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    # Главная панель
     main_cols = st.columns([8, 4])
 
-    # Левая колонка: График
     with main_cols[0]:
         st.subheader("График")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    # Правая колонка: Корреляция
     with main_cols[1]:
         st.subheader("Корреляция")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-    
+
     data_cols = st.columns([8, 4])
 
-    # Средние статистики
     with data_cols[0]:
-
         col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
         with col1:
             st.subheader("Среднее")
             st.write("1234")
-
         with col2:
             st.subheader("СКО")
             st.write("124124")
-
         with col3:
             st.subheader("Медиана")
             st.write("123124")
-
         with col4:
             st.subheader("Мин. знач.")
             st.write("123142")
         with col5:
             st.subheader("Макс. знач.")
             st.write("123123")
-        
-        # Предпросмотр и параметры
-        col1, col2 = st.columns([4, 4])
 
+        col1, col2 = st.columns([4, 4])
         with col1:
             st.subheader("Предпросмотр:")
             st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
         with col2:
             st.subheader("Параметры:")
             st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    # Парные графики
     with data_cols[1]:
         st.subheader("Парные графики")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-
-    # Конкретизация параметра
     st.markdown("<h2 style='text-align: center;'>Конкретизация параметра</h2>", unsafe_allow_html=True)
-     
-    col11, col12 = st.columns([2, 4])
 
+    col11, col12 = st.columns([2, 4])
     with col11:
         st.subheader("Выбор параметра")
         st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
     with col12:
         st.subheader("Тренд/Сезонность")
         st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    # Распределение признака и автокорреляция
-     
     col13, col14 = st.columns(2)
-
     with col13:
         st.subheader("Распределение признака")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
     with col14:
         st.subheader("Автокорреляция")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
