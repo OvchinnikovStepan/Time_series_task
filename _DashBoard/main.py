@@ -5,10 +5,7 @@ from dashboard.info_about_dataframe import info_about_dataframe
 from dashboard.select_time_interval import start_date, end_date, filter_dataframe
 from dashboard.plot_interactive_with_selection import plot_interactive_with_selection
 
-st.sidebar.title("Навигация")
 page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
-st.markdown(" ")
-st.markdown(" ")
 
 # Устанавливаем шрифт и убираем отступы
 st.markdown("""
@@ -185,60 +182,23 @@ elif page == "Анализ данных":
     # Настройка страницы
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    # Главная панель
-    main_cols = st.columns([8, 4])
+    # График
+    st.subheader("График")
+    st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    # Левая колонка: График
-    with main_cols[0]:
-        st.subheader("График")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
-    # Правая колонка: Корреляция
-    with main_cols[1]:
-        st.subheader("Корреляция")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-    
-    data_cols = st.columns([8, 4])
-
-    # Средние статистики
-    with data_cols[0]:
-
-        col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
-        with col1:
-            st.subheader("Среднее")
-            st.write("1234")
-
-        with col2:
-            st.subheader("СКО")
-            st.write("124124")
-
-        with col3:
-            st.subheader("Медиана")
-            st.write("123124")
-
-        with col4:
-            st.subheader("Мин. знач.")
-            st.write("123142")
-        with col5:
-            st.subheader("Макс. знач.")
-            st.write("123123")
         
-        # Предпросмотр и параметры
-        col1, col2 = st.columns([4, 4])
+    # Предпросмотр и параметры
+    col1, col2 = st.columns([8, 4])
 
-        with col1:
-            st.subheader("Предпросмотр:")
-            st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+    with col1:
+        st.subheader("Предпросмотр:")
+        st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-        with col2:
-            st.subheader("Параметры:")
-            st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+    with col2:
+        st.subheader("Параметры:")
+        st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    # Парные графики
-    with data_cols[1]:
-        st.subheader("Парные графики")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
+    
 
     # Конкретизация параметра
     st.markdown("<h2 style='text-align: center;'>Конкретизация параметра</h2>", unsafe_allow_html=True)
@@ -253,8 +213,27 @@ elif page == "Анализ данных":
         st.subheader("Тренд/Сезонность")
         st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
+    col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
+    with col1:
+        st.subheader("Среднее")
+        st.write("1234")
+
+    with col2:
+        st.subheader("СКО")
+        st.write("124124")
+
+    with col3:
+        st.subheader("Медиана")
+        st.write("123124")
+
+    with col4:
+        st.subheader("Мин. знач.")
+        st.write("123142")
+    with col5:
+        st.subheader("Макс. знач.")
+        st.write("123123")
+
     # Распределение признака и автокорреляция
-     
     col13, col14 = st.columns(2)
 
     with col13:
@@ -264,3 +243,11 @@ elif page == "Анализ данных":
     with col14:
         st.subheader("Автокорреляция")
         st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+
+
+   
+
+    # # Парные графики
+    # with data_cols[1]:
+    #     st.subheader("Парные графики")
+    #     st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
