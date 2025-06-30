@@ -6,18 +6,19 @@ from datetime import datetime
 import numpy as np
 from scipy import stats
 
-def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors: list):
+def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors: list, flag: bool):
     """
-    Создаёт интерактивный график зависимости значений датчиков от времени с возможностью выделения одного интервала.
-    Выделенные точки, включая аномалии, отображаются сразу, предыдущее выделение сбрасывается при новом выборе.
-    Аномалии подсвечиваются крестами того же цвета, что и датчик, и включаются в тренировочный датасет.
-    
+    Создаёт интерактивный график зависимости значений датчиков от времени.
+    Если flag=True, включает возможность выделения одного интервала и подготовку данных для обучения.
+    Если flag=False, отображает только график без возможности выделения.
+
     Параметры:
     - filtered_df (pd.DataFrame): Отфильтрованный DataFrame с DatetimeIndex и столбцами-датчиками.
     - selected_sensors (list): Список выбранных датчиков для отображения.
-    
+    - flag (bool): Включает (True) или отключает (False) функционал выделения точек.
+
     Возвращает:
-    - pd.DataFrame: Датасет с выделенными точками (индекс — timestamp, колонки — tensor1, tensor2, ...).
+    - pd.DataFrame or None: Датасет с выделенными точками (если flag=True), иначе None.
     """
     if filtered_df is None or filtered_df.empty:
         st.warning("Нет данных для визуализации.")
@@ -27,17 +28,21 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
         st.info("Выберите хотя бы один датчик в таблице параметров.")
         return None
 
-    # Инициализация состояния сессии
-    if 'dragmode' not in st.session_state:
-        st.session_state.dragmode = 'select'
-    if 'selected_points' not in st.session_state:
-        st.session_state.selected_points = {}
+    # Инициализация состояния сессии только если flag=True
+    if flag:
+        if 'dragmode' not in st.session_state:
+            st.session_state.dragmode = 'select'
+        if 'selected_points' not in st.session_state:
+            st.session_state.selected_points = {}
+    else:
+        # Устанавливаем dragmode в 'pan' для страницы анализа
+        st.session_state.dragmode = 'pan'
 
     # Создание контейнера для графика
     plot_placeholder = st.empty()
 
     # Функция для построения графика
-    def build_plot(selected_points_data):
+    def build_plot(selected_points_data=None):
         fig = go.Figure()
 
         # Цвета для датчиков
@@ -52,8 +57,10 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
                 z_scores = np.abs(stats.zscore(filtered_df[sensor].dropna()))
                 outliers_mask[sensor] = z_scores > 3
 
-        # Обновление выделенных точек
-        selected_x = set(x for sensor in selected_sensors for x, _ in selected_points_data.get(sensor, [])) if selected_points_data else set()
+        # Обновление выделенных точек (только если flag=True)
+        selected_x = set()
+        if flag and selected_points_data:
+            selected_x = set(x for sensor in selected_sensors for x, _ in selected_points_data.get(sensor, []))
 
         # Отрисовка линий, аномалий и выделенных точек
         for sensor in selected_sensors:
@@ -74,8 +81,8 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
                         showlegend=True
                     ))
 
-                # Подсветка выделенных точек (включая аномалии)
-                if mask_selected.any():
+                # Подсветка выделенных точек (только если flag=True)
+                if flag and mask_selected.any():
                     fig.add_trace(go.Scatter(
                         x=filtered_df.index[mask_selected],
                         y=y[mask_selected],
@@ -109,14 +116,18 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
 
         return fig
 
-    # Первоначальный рендеринг графика
+    # Рендеринг графика
     with plot_placeholder:
-        fig = build_plot(st.session_state.selected_points)
-        selected_points = plotly_events(fig, select_event=True, override_height=420, click_event=False)
+        if flag:
+            fig = build_plot(st.session_state.selected_points)
+            selected_points = plotly_events(fig, select_event=True, override_height=420, click_event=False)
+        else:
+            fig = build_plot()
+            plotly_events(fig, select_event=False, override_height=420, click_event=False)
 
-    # Обработка выделенных точек
+    # Обработка выделенных точек (только если flag=True)
     training_df = None
-    if selected_points:
+    if flag and selected_points:
         # Очищаем предыдущие выделенные точки
         st.session_state.selected_points = {}
 
@@ -140,8 +151,8 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
             fig = build_plot(st.session_state.selected_points)
             plotly_events(fig, select_event=True, override_height=420, click_event=False)
 
-    # Подготовка датасета для обучения
-    if st.session_state.selected_points:
+    # Подготовка датасета для обучения (только если flag=True)
+    if flag and st.session_state.selected_points:
         if st.button("Использовать данные для обучения"):
             export_data = {}
             timestamps = sorted(set(x for sensor in st.session_state.selected_points for x, _ in st.session_state.selected_points[sensor]))
@@ -153,11 +164,12 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
             st.write("Пример данных для обучения:")
             st.dataframe(training_df)
 
-    # Кнопка для очистки выделения
-    if st.button("Очистить выделение"):
-        st.session_state.selected_points = {}
-        with plot_placeholder:
-            fig = build_plot(st.session_state.selected_points)
-            plotly_events(fig, select_event=True, override_height=420, click_event=False)
+    # Кнопка для очистки выделения (только если flag=True)
+    if flag:
+        if st.button("Очистить выделение"):
+            st.session_state.selected_points = {}
+            with plot_placeholder:
+                fig = build_plot(st.session_state.selected_points)
+                plotly_events(fig, select_event=True, override_height=420, click_event=False)
 
     return training_df

@@ -5,8 +5,10 @@ from dashboard.info_about_dataframe import info_about_dataframe
 from dashboard.select_time_interval import start_date, end_date, filter_dataframe
 from dashboard.plot_interactive_with_selection import plot_interactive_with_selection
 from dashboard.plot_time_series import plot_time_series
-from dashboard.show_correlation_matrix import show_correlation_matrix
+from dashboard.show_heatmap import show_heatmap
 from dashboard.info_about_feature import info_about_feature
+from dashboard.show_pairplot import show_pairplot
+
 
 st.sidebar.title("Навигация")
 page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
@@ -41,10 +43,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+df, outlier_percentage = upload()
 if page == "Прогнозирование":
     st.set_page_config(page_title="Прогнозирование", layout="wide")
 
-    df, outlier_percentage = upload()
 
     top_cols = st.columns([2, 2, 2, 2, 2])
 
@@ -88,9 +90,9 @@ if page == "Прогнозирование":
             selected_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
 
             if selected_sensors:
-                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=selected_sensors)
+                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=selected_sensors, flag=True)
             else:
-                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist())
+                training_df = plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist(), flag=True)
         else:
             st.markdown("""<div class="block" style="height: 420px;"></div>""", unsafe_allow_html=True)
 
@@ -196,7 +198,6 @@ if page == "Прогнозирование":
                     st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
 
 elif page == "Анализ данных":
-    df, outlier_percentage = upload()
     top_cols = st.columns([2, 2, 2, 2, 2])
 
     features_size, tuples_size, first_tuple, last_tuple = info_about_dataframe(df)
@@ -214,79 +215,112 @@ elif page == "Анализ данных":
         st.markdown(f"Последняя запись: {last_tuple if last_tuple is not None else 'Нет информации'}")
 
     with top_cols[4]:
-        st.markdown(f"Количество выбросов: {f'{outlier_percentage}% от всех значений'  if outlier_percentage is not None else 'Нет информации'}")
+        st.markdown(f"Количество выбросов: {f'{outlier_percentage}% от всех значений' if outlier_percentage is not None else 'Нет информации'}")
 
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    main_cols = st.columns([8, 4])
+    st.subheader("График")
+    if df is not None and not df.empty:
+        # Инициализация filtered_df в session_state, если еще не существует
+        if 'filtered_df' not in st.session_state:
+            st.session_state['filtered_df'] = df
+        filtered_df = st.session_state['filtered_df']
 
-    with main_cols[0]:
-        st.subheader("График")
-        if df is not None and not df.empty:
-            graph = plot_time_series(df)
+        # Добавляем кнопки "Применить фильтр" и "Сбросить фильтр" над графиком
+        button_cols = st.columns(2)
+        with button_cols[0]:
+            if st.button("Применить фильтр", key="apply_filter_analysis"):
+                if 'sensor_editor_temp' in st.session_state:
+                    st.session_state['selected_sensors'] = st.session_state['sensor_editor_temp']
+                    # Обновляем filtered_df, оставляя только выбранные датчики
+                    st.session_state['filtered_df'] = df[st.session_state['selected_sensors']]
+                else:
+                    st.session_state['selected_sensors'] = df.columns.tolist()
+                    st.session_state['filtered_df'] = df
+                st.rerun()
+
+        with button_cols[1]:
+            if st.button("Сбросить фильтр", key="reset_filter_analysis"):
+                # Сбрасываем filtered_df до исходного DataFrame
+                st.session_state['filtered_df'] = df
+                # Сбрасываем выбранные датчики до всех столбцов
+                st.session_state['selected_sensors'] = df.columns.tolist()
+                st.session_state['sensor_editor_temp'] = df.columns.tolist()
+                st.rerun()
+
+        # Отображаем график после кнопок
+        selected_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
+
+        if selected_sensors:
+            plot_interactive_with_selection(filtered_df, selected_sensors=selected_sensors, flag=False)  # flag=False для только просмотра
         else:
-            st.markdown("""<div class="block" style="height: 420px;"></div>""", unsafe_allow_html=True)
+            plot_interactive_with_selection(filtered_df, selected_sensors=df.columns.tolist(), flag=False)
+    else:
+        st.markdown("""<div class="block" style="height: 420px;"></div>""", unsafe_allow_html=True)
 
-    with main_cols[1]:
-        st.subheader("Корреляция")
+    lower_cols = st.columns([6, 6])
+    with lower_cols[1]:
+        st.markdown("#### Параметры:")
         if df is not None and not df.empty:
-            show_correlation_matrix(df)
+            sensor_df = pd.DataFrame({
+                'Датчики': df.columns,
+                'Отображать': [col in st.session_state.get('selected_sensors', df.columns.tolist()) for col in df.columns]
+            })
+            edited_sensor_df = st.data_editor(sensor_df, key="sensor_selector_analysis")  # Уникальный ключ для этой страницы
+            st.session_state['sensor_editor_temp'] = edited_sensor_df[edited_sensor_df['Отображать']]['Датчики'].tolist()
         else:
-            st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+            st.markdown("Нет информации", unsafe_allow_html=True)
 
-    features = df.columns.tolist()
-    selected_feature = st.selectbox("Выберите признак для подробной информации о нём", features, index=0)
-    mean, median, std, minimal, maximum = info_about_feature(df, selected_feature)
+    with lower_cols[0]:
+        st.markdown("#### Предпросмотр:")
+        if df is not None:
+            st.dataframe(filtered_df)  # Используем filtered_df
+        else:
+            st.markdown("Нет информации", unsafe_allow_html=True)
 
-    data_cols = st.columns([8, 4])
 
-    with data_cols[0]:
+    panel_col1, panel_col2 = st.columns(2)
+    with panel_col1:
+        if st.button("Heatmap и pairplot"):
+            st.session_state['active_panel'] = "heatmap_pairplot"
+    with panel_col2:
+        if st.button("Статистика датчиков"):
+            st.session_state['active_panel'] = "sensor_statistics"
+
+# Отображаем панель в одном и том же месте
+    if 'active_panel' not in st.session_state:
+        st.session_state['active_panel'] = "heatmap_pairplot"  # по умолчанию
+
+    if st.session_state['active_panel'] == "heatmap_pairplot":
+        st.markdown("### Heatmap и pairplot")
+        col_heat, col_pair = st.columns(2)
+        with col_heat:
+            show_heatmap(df)
+        with col_pair:
+            show_pairplot(df)
+    elif st.session_state['active_panel'] == "sensor_statistics":
+        st.markdown("### Статистика датчиков")
+        features = filtered_df.columns.tolist() if df is not None and not df.empty else []
+        selected_feature = st.selectbox("Выберите признак для подробной информации о нём", features, index=0)
+        mean, median, std, minimal, maximum = info_about_feature(filtered_df, selected_feature)
         col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
         with col1:
             st.subheader("Среднее")
-            st.write(f"{mean}")
+            st.write(f"{mean:.3f}")
         with col2:
             st.subheader("СКО")
-            st.write(f"{std}")
+            st.write(f"{std:.3f}")
         with col3:
             st.subheader("Медиана")
-            st.write(f"{median}")
+            st.write(f"{median:.3f}")
         with col4:
             st.subheader("Мин. знач.")
-            st.write(f"{minimal}")
+            st.write(f"{minimal:.3f}")
         with col5:
             st.subheader("Макс. знач.")
-            st.write(f"{maximum}")
+            st.write(f"{maximum:.3f}")
 
-        col1, col2 = st.columns([4, 4])
-        with col1:
-            st.subheader("Предпросмотр:")
-            if df is not None:
-                st.dataframe(df)
-            else:
-                st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-        with col2:
-            st.subheader("Параметры:")
-            st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    with data_cols[1]:
-        st.subheader("Парные графики")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
 
-    st.markdown("<h2 style='text-align: center;'>Конкретизация параметра</h2>", unsafe_allow_html=True)
 
-    col11, col12 = st.columns([2, 4])
-    with col11:
-        st.subheader("Выбор параметра")
-        st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-    with col12:
-        st.subheader("Тренд/Сезонность")
-        st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-
-    col13, col14 = st.columns(2)
-    with col13:
-        st.subheader("Распределение признака")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
-    with col14:
-        st.subheader("Автокорреляция")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+    
