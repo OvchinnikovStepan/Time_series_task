@@ -2,7 +2,7 @@ from pydantic import BaseModel
 import json
 import requests
 
-
+#Отправил
 
 def send_model_request(payload: BaseModel):
     with open('config.json', 'r', encoding='utf-8') as f:
