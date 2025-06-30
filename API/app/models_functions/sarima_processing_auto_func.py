@@ -1,5 +1,6 @@
 from pmdarima import auto_arima
 import pandas as pd
+from make_prediction_dataframe_func import make_prediction_dataframe
 
 def sarima_processing_auto(params):
     """
@@ -22,10 +23,8 @@ def sarima_processing_auto(params):
         suppress_warnings=True
     )
     
-    forecast_steps = len(df_test)
+    forecast_steps = len(df_test)+params["duration"]
     predictions = model.predict(n_periods=forecast_steps)
-    
-    predictions_df = pd.DataFrame(predictions, index=df_test.index, columns=["predictions"])
     
     model_params = {
         'order': model.order,
@@ -34,6 +33,6 @@ def sarima_processing_auto(params):
     }
     
     return {
-        "predictions": predictions_df,
+        "predictions":  make_prediction_dataframe(df_train,predictions,params["duration"]),
         "model_params": model_params,
     }

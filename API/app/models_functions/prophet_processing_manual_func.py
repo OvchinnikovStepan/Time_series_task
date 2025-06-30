@@ -1,5 +1,6 @@
 from prophet import Prophet
 import pandas as pd
+from make_prediction_dataframe_func import make_prediction_dataframe
 
 def prophet_processing_manual(params):
     """
@@ -33,7 +34,7 @@ def prophet_processing_manual(params):
     model.fit(train_df)
     
     future = model.make_future_dataframe(
-        periods=len(df_test),
+        periods=len(df_test)+params["duration"],
         freq=pd.infer_freq(df_train.index))
     
     forecast = model.predict(future)
@@ -58,8 +59,6 @@ def prophet_processing_manual(params):
     }
     
     return {
-        "predictions": pd.DataFrame(predictions.values, 
-                                 index=df_test.index, 
-                                 columns=["predictions"]),
+        "predictions": make_prediction_dataframe(df_train,predictions.values,params["duration"]),
         "model_params": model_params
     }
