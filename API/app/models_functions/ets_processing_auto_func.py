@@ -7,6 +7,9 @@ def ets_processing_auto(params):
     - params: словарь с параметрами:
         - seasonal_periods: int/None (период сезонности)
     """
+    df_train = pd.read_json(params["df_train"], orient='records')
+    df_test = pd.read_json(params["df_test"], orient='records')
+
     error_types = ['add', 'mul']
     trend_types = [None, 'add', 'mul']
     season_types = [None, 'add', 'mul']
@@ -26,7 +29,7 @@ def ets_processing_auto(params):
             continue
             
         try:
-            model = ETSModel(params["df_train"],
+            model = ETSModel(df_train,
                            error=err,
                            trend=trend,
                            seasonal=season,
@@ -45,7 +48,7 @@ def ets_processing_auto(params):
         except:
             continue
     
-    forecast_steps = len(params["df_test"])
+    forecast_steps = len(df_test)
     predictions = best_model.forecast(steps=forecast_steps)
     
     model_params = {
@@ -70,7 +73,7 @@ def ets_processing_auto(params):
     
     return {
         "predictions": pd.DataFrame(predictions, 
-                                   index=params["df_test"].index, 
+                                   index=df_test.index, 
                                    columns=["predictions"]),
         "model_params": model_params,
     }

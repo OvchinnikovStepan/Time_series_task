@@ -12,9 +12,12 @@ def prophet_processing_manual(params):
         - seasonality_prior_scale: float
         - changepoint_prior_scale: float
     """
+    df_train = pd.read_json(params["df_train"], orient='records')
+    df_test = pd.read_json(params["df_test"], orient='records')
+    
     train_df = pd.DataFrame({
-        'ds': params["df_train"].index,
-        'y': params["df_train"].values
+        'ds': df_train.index,
+        'y': df_train.values
     })
     
     model = Prophet(
@@ -30,12 +33,12 @@ def prophet_processing_manual(params):
     model.fit(train_df)
     
     future = model.make_future_dataframe(
-        periods=len(params["df_test"]),
-        freq=pd.infer_freq(params["df_train"].index))
+        periods=len(df_test),
+        freq=pd.infer_freq(df_train.index))
     
     forecast = model.predict(future)
     
-    predictions = forecast.tail(len(params["df_test"]))['yhat']
+    predictions = forecast.tail(len(df_test))['yhat']
     
     model_params = {
         'growth': model.growth,
@@ -56,7 +59,7 @@ def prophet_processing_manual(params):
     
     return {
         "predictions": pd.DataFrame(predictions.values, 
-                                 index=params["df_test"].index, 
+                                 index=df_test.index, 
                                  columns=["predictions"]),
         "model_params": model_params
     }
