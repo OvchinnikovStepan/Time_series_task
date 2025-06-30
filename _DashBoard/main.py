@@ -4,6 +4,9 @@ from dashboard.upload import upload
 from dashboard.info_about_dataframe import info_about_dataframe
 from dashboard.select_time_interval import start_date, end_date, filter_dataframe
 from dashboard.plot_interactive_with_selection import plot_interactive_with_selection
+from dashboard.plot_time_series import plot_time_series
+from dashboard.show_correlation_matrix import show_correlation_matrix
+from dashboard.info_about_feature import info_about_feature
 
 st.sidebar.title("Навигация")
 page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
@@ -193,24 +196,25 @@ if page == "Прогнозирование":
                     st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
 
 elif page == "Анализ данных":
-    top_cols = st.columns([2, 2, 2, 2, 2, 2])
-
-    with top_cols[0]:
-        df = upload()
+    df, outlier_percentage = upload()
+    top_cols = st.columns([2, 2, 2, 2, 2])
 
     features_size, tuples_size, first_tuple, last_tuple = info_about_dataframe(df)
-
-    with top_cols[1]:
+    
+    with top_cols[0]:
         st.markdown(f"Кол-во записей: {tuples_size if tuples_size is not None else 'Нет информации'}")
 
-    with top_cols[2]:
+    with top_cols[1]:
         st.markdown(f"Количество признаков: {features_size if features_size is not None else 'Нет информации'}")
 
-    with top_cols[3]:
+    with top_cols[2]:
         st.markdown(f"Первая запись: {first_tuple if first_tuple is not None else 'Нет информации'}")
 
-    with top_cols[4]:
+    with top_cols[3]:
         st.markdown(f"Последняя запись: {last_tuple if last_tuple is not None else 'Нет информации'}")
+
+    with top_cols[4]:
+        st.markdown(f"Количество выбросов: {f'{outlier_percentage}% от всех значений'  if outlier_percentage is not None else 'Нет информации'}")
 
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
@@ -218,11 +222,21 @@ elif page == "Анализ данных":
 
     with main_cols[0]:
         st.subheader("График")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+        if df is not None and not df.empty:
+            graph = plot_time_series(df)
+        else:
+            st.markdown("""<div class="block" style="height: 420px;"></div>""", unsafe_allow_html=True)
 
     with main_cols[1]:
         st.subheader("Корреляция")
-        st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+        if df is not None and not df.empty:
+            show_correlation_matrix(df)
+        else:
+            st.markdown("<div style='height: 400px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+
+    features = df.columns.tolist()
+    selected_feature = st.selectbox("Выберите признак для подробной информации о нём", features, index=0)
+    mean, median, std, minimal, maximum = info_about_feature(df, selected_feature)
 
     data_cols = st.columns([8, 4])
 
@@ -230,24 +244,27 @@ elif page == "Анализ данных":
         col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
         with col1:
             st.subheader("Среднее")
-            st.write("1234")
+            st.write(f"{mean}")
         with col2:
             st.subheader("СКО")
-            st.write("124124")
+            st.write(f"{std}")
         with col3:
             st.subheader("Медиана")
-            st.write("123124")
+            st.write(f"{median}")
         with col4:
             st.subheader("Мин. знач.")
-            st.write("123142")
+            st.write(f"{minimal}")
         with col5:
             st.subheader("Макс. знач.")
-            st.write("123123")
+            st.write(f"{maximum}")
 
         col1, col2 = st.columns([4, 4])
         with col1:
             st.subheader("Предпросмотр:")
-            st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
+            if df is not None:
+                st.dataframe(df)
+            else:
+                st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
         with col2:
             st.subheader("Параметры:")
             st.markdown("<div style='height: 300px; background-color: lightgray;'></div>", unsafe_allow_html=True)
