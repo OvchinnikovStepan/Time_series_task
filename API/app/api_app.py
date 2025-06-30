@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import httpx
 from models_functions.routing_func import routing_func
+from metrics_functions.metrics_func import calculate_metrics
 
 app = FastAPI()
 
@@ -55,8 +56,8 @@ async def process_data(request: ModelRequestModel):
         "status": "success",
         "received_model_type": model_type,
         "auto_params": auto_params,
-        "params": params,
-        "df_predict": df_predict.to_dict(orient='records') if df_predict is not None else None,
+        "model_params": df_predict["model_params"],
+        "df_predict": df_predict["predictions"].to_json(orient='records'),
         "metrics": metrics_response.json()
     }
 
@@ -74,13 +75,7 @@ async def process_data(request: MetricsRequestModel):
 
         # await asyncio.sleep(20)
 
-        means_test = calculate_sensor_means(df_test)
-        means_predict = calculate_sensor_means(df_predict)
-
-        means = {
-            "means_test": means_test,
-            "means_predict": means_predict
-        }
+        metrics = calculate_metrics(df_test, df_predict)
 
 
     except Exception as e:
@@ -89,7 +84,7 @@ async def process_data(request: MetricsRequestModel):
     # Пример обработки
     response = {
         "metrics_status": "success",
-        "means": means
+        "metrics": metrics
     }
 
     return response
@@ -107,18 +102,3 @@ async def get_metrics(df_test_json: str, df_predict_json: str):
         return response
 
 
-def calculate_sensor_means(df: pd.DataFrame) -> dict:
-    """
-    Рассчитывает среднее значение для всех колонок с показаниями датчиков.
-
-    :param df: Входной DataFrame с данными датчиков (например, df_train или df_test)
-    :return: Словарь вида {'sensor_1': среднее, 'sensor_2': среднее, ...}
-    """
-    # Убираем колонку timestamp из расчёта, если она есть
-    numeric_cols = df.select_dtypes(include=['number']).columns
-
-    if len(numeric_cols) == 0:
-        raise ValueError("В DataFrame нет числовых колонок для расчёта среднего.")
-
-    means = df[numeric_cols].mean().to_dict()
-    return means
