@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import requests
 import json
+from send_request import send_model_request
 
 # === df_train (уже как в предыдущем примере) ===
 start_time = datetime.now().replace(microsecond=0)
@@ -59,11 +60,7 @@ payload = {
     'duration': 'PT5M'
 }
 
-response = requests.post(
-    'http://localhost:8000/api/v1/model_process',
-    json=payload,
-    headers={'Content-Type': 'application/json'}
-)
+response = send_model_request(payload)
 
 print("Status Code:", response.status_code)
 print("Response JSON:", response.json())
