@@ -3,6 +3,7 @@ import json
 import requests
 
 
+
 def send_model_request(payload: BaseModel):
     with open('config.json', 'r', encoding='utf-8') as f:
         config = json.load(f)
