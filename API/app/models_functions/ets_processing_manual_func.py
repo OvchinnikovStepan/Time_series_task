@@ -10,10 +10,13 @@ def ets_processing_manual(params):
         - seasonal_periods: int/None
         - damped_trend: bool
     """
+    df_train = pd.read_json(params["df_train"], orient='records')
+    df_test = pd.read_json(params["df_test"], orient='records')
+
     hyper_params = params["params"]
     
     model = ETSModel(
-        params["df_train"],
+        df_train,
         error=hyper_params.get("error_type", "add"),
         trend=hyper_params.get("trend_type", None),
         seasonal=hyper_params.get("season_type", None),
@@ -21,7 +24,7 @@ def ets_processing_manual(params):
         damped_trend=hyper_params.get("damped_trend", False)
     ).fit()
     
-    forecast_steps = len(params["df_test"])
+    forecast_steps = len(df_test)
     predictions = model.forecast(steps=forecast_steps)
     
     model_params = {
@@ -43,6 +46,6 @@ def ets_processing_manual(params):
     }
     
     return {
-        "predictions": pd.DataFrame(predictions, index=params["df_test"].index, columns=["predictions"]),
+        "predictions": pd.DataFrame(predictions, index=df_test.index, columns=["predictions"]),
         "model_params": model_params
     }

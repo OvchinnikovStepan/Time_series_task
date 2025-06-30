@@ -6,9 +6,12 @@ from itertools import product
 
 def prophet_processing_auto(params):
 
+    df_train = pd.read_json(params["df_train"], orient='records')
+    df_test = pd.read_json(params["df_test"], orient='records')
+
     train_df = pd.DataFrame({
-        'ds': params["df_train"].index,
-        'y': params["df_train"].values
+        'ds': df_train.index,
+        'y': df_train.values
     })
     
     param_grid = {
@@ -65,16 +68,16 @@ def prophet_processing_auto(params):
     # Обучение лучшей модели на всех данных
     final_model = Prophet(**best_params)
     final_model.fit(pd.DataFrame({
-        'ds': params["df_train"].index,
-        'y': params["df_train"].values
+        'ds': df_train.index,
+        'y': df_train.values
     }))
     
     # Прогноз на тестовом наборе
     future = final_model.make_future_dataframe(
-        periods=len(params["df_test"]), 
-        freq=pd.infer_freq(params["df_train"].index))
+        periods=len(df_test), 
+        freq=pd.infer_freq(df_train.index))
     forecast = final_model.predict(future)
-    predictions = forecast.tail(len(params["df_test"]))['yhat']
+    predictions = forecast.tail(len(df_test))['yhat']
     
     # Формирование возвращаемых данных
     model_params = {
@@ -96,7 +99,7 @@ def prophet_processing_auto(params):
     
     return {
         "predictions": pd.DataFrame(predictions.values, 
-                                 index=params["df_test"].index, 
+                                 index=df_test.index, 
                                  columns=["predictions"]),
         "model_params": model_params
     }

@@ -3,10 +3,8 @@ from pydantic import BaseModel
 from typing import  Optional
 import pandas as pd
 import json
-import asyncio
-import requests
 import httpx
-import isodate
+from models_functions.routing_func import routing_func
 
 app = FastAPI()
 
@@ -14,9 +12,8 @@ class ModelRequestModel(BaseModel):
     model_type: str
     auto_params: bool
     params: Optional[str] = None    # JSON строка
-    df_train: str                   # JSON строка
-    df_test: str                    # JSON строка
-    duration: str
+
+
 
 class MetricsRequestModel(BaseModel):
     df_predict: str             # JSON строка
@@ -27,19 +24,16 @@ async def process_data(request: ModelRequestModel):
     # Извлечение данных
     model_type = request.model_type
     auto_params = request.auto_params
-    if auto_params:
-        params = {'auto': 0.1}
-    else:
-        params = json.loads(request.params) if request.params else None
-    duration = isodate.parse_duration(request.duration)
+    params = json.loads(request.params)
+
 
     # Преобразование JSON-строк в DataFrame
     try:
-        df_train = pd.read_json(request.df_train, orient='records')
-        df_test = pd.read_json(request.df_test, orient='records')
+        df_train = pd.read_json(params["df_train"], orient='records')
+        df_test = pd.read_json(params["df_test"], orient='records')
 
         # await asyncio.sleep(20)
-        df_predict = combine_first_rows(df_train, df_test)
+        df_predict = routing_func(params)
 
     except Exception as e:
         return {"error": f"Failed to parse DataFrame: {str(e)}"}
@@ -69,29 +63,6 @@ async def process_data(request: ModelRequestModel):
     return response
 
 
-def combine_first_rows(df_train: pd.DataFrame, df_test: pd.DataFrame) -> pd.DataFrame:
-    """
-    Берёт первую строку из df_train и df_test и объединяет их как две отдельные строки.
-
-    :param df_train: Первый DataFrame (например, обучающие данные)
-    :param df_test: Второй DataFrame (например, тестовые данные)
-    :return: Новый DataFrame с двумя строками — первые строки из df_train и df_test
-    """
-    if df_train.empty or df_test.empty:
-        raise ValueError("Один из DataFrame пустой, не могу взять первую строку.")
-
-    # Берём первую строку из каждого DataFrame
-    row_train = df_train.iloc[[0]].copy()
-    row_test = df_test.iloc[[0]].copy()
-
-    # Сбрасываем индексы, чтобы не было проблем при объединении
-    row_train.reset_index(drop=True, inplace=True)
-    row_test.reset_index(drop=True, inplace=True)
-
-    # Объединяем по строкам (axis=0)
-    combined_df = pd.concat([row_train, row_test], axis=0, ignore_index=True)
-
-    return combined_df
 
 @app.post("/api/v1/metrics_process")
 async def process_data(request: MetricsRequestModel):
