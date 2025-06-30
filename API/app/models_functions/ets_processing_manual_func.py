@@ -1,6 +1,6 @@
 from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 import pandas as pd
-
+from make_prediction_dataframe_func import make_prediction_dataframe
 def ets_processing_manual(params):
     """
     - params: словарь параметров модели:
@@ -24,7 +24,7 @@ def ets_processing_manual(params):
         damped_trend=hyper_params.get("damped_trend", False)
     ).fit()
     
-    forecast_steps = len(df_test)
+    forecast_steps = len(df_test)+params["duration"]
     predictions = model.forecast(steps=forecast_steps)
     
     model_params = {
@@ -46,6 +46,6 @@ def ets_processing_manual(params):
     }
     
     return {
-        "predictions": pd.DataFrame(predictions, index=df_test.index, columns=["predictions"]),
+        "predictions": make_prediction_dataframe(df_train,predictions,params["duration"]),
         "model_params": model_params
     }
