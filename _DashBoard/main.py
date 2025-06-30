@@ -4,10 +4,12 @@ from dashboard.upload import upload
 from dashboard.info_about_dataframe import info_about_dataframe
 from dashboard.select_time_interval import start_date, end_date, filter_dataframe
 from dashboard.plot_interactive_with_selection import plot_interactive_with_selection
-from dashboard.plot_time_series import plot_time_series
 from dashboard.show_heatmap import show_heatmap
 from dashboard.info_about_feature import info_about_feature
 from dashboard.show_pairplot import show_pairplot
+from dashboard.forecasting import forecasting
+from dashboard.show_hist import show_hist
+from dashboard.show_autocorrelation import show_autocorrelation
 
 
 st.sidebar.title("Навигация")
@@ -320,6 +322,15 @@ elif page == "Анализ данных":
             st.subheader("Макс. знач.")
             st.write(f"{maximum:.3f}")
 
+        forecasting(df, column=selected_feature)
+
+        col_hist, col_autocorr = st.columns(2)
+
+        with col_hist:
+            show_hist(df, selected_feature, bins=100)
+
+        with col_autocorr:
+            show_autocorrelation(df, selected_feature)
 
 
 
