@@ -2,6 +2,10 @@ from pmdarima import auto_arima
 import pandas as pd
 
 def sarima_processing_auto(params):
+    """
+    - params:
+        S - сезонность
+    """
     try:
         season = params["params"]["S"]
     except:

@@ -3,11 +3,14 @@ import pandas as pd
 from itertools import product
 
 def ets_processing_auto(params):
-
+    """
+    - params: словарь с параметрами:
+        - seasonal_periods: int/None (период сезонности)
+    """
     error_types = ['add', 'mul']
     trend_types = [None, 'add', 'mul']
     season_types = [None, 'add', 'mul']
-    damped_options = params["params"].get("damped_trend_options", [False, True])
+    damped_options = [False, True]
     seasonal_periods = params["params"].get("seasonal_periods", None)
     
     best_aic = float('inf')

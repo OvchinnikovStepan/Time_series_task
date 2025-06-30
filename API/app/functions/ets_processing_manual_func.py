@@ -2,7 +2,14 @@ from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 import pandas as pd
 
 def ets_processing_manual(params):
-
+    """
+    - params: словарь параметров модели:
+        - error_type: 'add'/'mul'
+        - trend_type: 'add'/'mul'/None
+        - season_type: 'add'/'mul'/None
+        - seasonal_periods: int/None
+        - damped_trend: bool
+    """
     hyper_params = params["params"]
     
     model = ETSModel(

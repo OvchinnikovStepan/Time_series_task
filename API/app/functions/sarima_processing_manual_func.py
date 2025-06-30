@@ -2,6 +2,17 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import pandas as pd
 
 def sarima_processing_manual(params):
+    """
+    params:
+        - S - сезонность
+        - p - порядок авторегрессии (число используемых предыдущих значений ряда)
+        - d - порядок дифферненцирования ряда
+        - q - порядок скользящего среднего (число используемых предыдущих ошибок)
+        - P - порядок сезонной авторегрессии
+        - D - порядок сезонного дифференциорования
+        - Q - порядок сезонного скользящего среднего
+    """
+
     hyper_params = params["params"]
     if  hyper_params["S"]:
         model = SARIMAX(
