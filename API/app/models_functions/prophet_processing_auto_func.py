@@ -3,6 +3,7 @@ from sklearn.metrics import mean_squared_error
 import pandas as pd
 import numpy as np
 from itertools import product
+from make_prediction_dataframe_func import make_prediction_dataframe
 
 def prophet_processing_auto(params):
 
@@ -74,7 +75,7 @@ def prophet_processing_auto(params):
     
     # Прогноз на тестовом наборе
     future = final_model.make_future_dataframe(
-        periods=len(df_test), 
+        periods=len(df_test)+params["duration"], 
         freq=pd.infer_freq(df_train.index))
     forecast = final_model.predict(future)
     predictions = forecast.tail(len(df_test))['yhat']
@@ -98,8 +99,6 @@ def prophet_processing_auto(params):
     }
     
     return {
-        "predictions": pd.DataFrame(predictions.values, 
-                                 index=df_test.index, 
-                                 columns=["predictions"]),
+        "predictions": make_prediction_dataframe(df_train,predictions.values,params["duration"]),
         "model_params": model_params
     }
