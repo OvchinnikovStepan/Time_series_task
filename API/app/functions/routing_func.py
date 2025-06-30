@@ -1,10 +1,16 @@
 from sarima_processing_manual_func import sarima_processing_manual
 from sarima_processing_auto_func import sarima_processing_auto
+from ets_processing_manual_func import ets_processing_manual
+from ets_processing_auto_func import ets_processing_auto
 
 routing_map={
     "sarima":{
         True: sarima_processing_auto,
         False: sarima_processing_manual
+        },
+    "ets":{
+        True: ets_processing_auto,
+        False: ets_processing_manual
         }
 }
 

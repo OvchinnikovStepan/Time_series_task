@@ -1,0 +1,73 @@
+from statsmodels.tsa.exponential_smoothing.ets import ETSModel
+import pandas as pd
+from itertools import product
+
+def ets_processing_auto(params):
+
+    error_types = ['add', 'mul']
+    trend_types = [None, 'add', 'mul']
+    season_types = [None, 'add', 'mul']
+    damped_options = params["params"].get("damped_trend_options", [False, True])
+    seasonal_periods = params["params"].get("seasonal_periods", None)
+    
+    best_aic = float('inf')
+    best_model = None
+    
+    for err, trend, season, damped in product(error_types, 
+                                             trend_types, 
+                                             season_types, 
+                                             damped_options):
+        if season is not None and seasonal_periods is None:
+            continue
+        if trend is None and damped:
+            continue
+            
+        try:
+            model = ETSModel(params["df_train"],
+                           error=err,
+                           trend=trend,
+                           seasonal=season,
+                           seasonal_periods=seasonal_periods,
+                           damped_trend=damped).fit()
+            
+            if model.aic < best_aic:
+                best_aic = model.aic
+                best_model = model
+                best_params = {
+                    'error_type': err,
+                    'trend_type': trend,
+                    'season_type': season,
+                    'damped_trend': damped
+                }
+        except:
+            continue
+    
+    forecast_steps = len(params["df_test"])
+    predictions = best_model.forecast(steps=forecast_steps)
+    
+    model_params = {
+        'model_type': {
+            'error': best_model.error,
+            'trend': best_model.trend,
+            'seasonal': best_model.seasonal,
+            'damped': best_model.damped
+        },
+        'params': {
+            'smoothing_level': best_model.params['smoothing_level'],
+            'smoothing_trend': best_model.params.get('smoothing_trend', None),
+            'smoothing_seasonal': best_model.params.get('smoothing_seasonal', None),
+            'initial_level': best_model.params['initial_level'],
+            'initial_trend': best_model.params.get('initial_trend', None),
+            'initial_seasons': best_model.params.get('initial_seasons', None)
+        },
+        'seasonal_periods': best_model.seasonal_periods,
+        'aic': best_model.aic,
+        'bic': best_model.bic
+    }
+    
+    return {
+        "predictions": pd.DataFrame(predictions, 
+                                   index=params["df_test"].index, 
+                                   columns=["predictions"]),
+        "model_params": model_params,
+    }
