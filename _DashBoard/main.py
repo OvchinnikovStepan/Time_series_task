@@ -11,12 +11,6 @@ from dashboard.forecasting import forecasting
 from dashboard.show_hist import show_hist
 from dashboard.show_autocorrelation import show_autocorrelation
 
-
-st.sidebar.title("Навигация")
-page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
-st.markdown(" ")
-st.markdown(" ")
-
 # Устанавливаем шрифт и убираем отступы
 st.markdown("""
     <style>
@@ -45,10 +39,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-df, outlier_percentage = upload()
+header_cols = st. columns([2, 10])
+with header_cols[0]:
+    page = st.radio(
+        "Выбор страницы",
+        ["Прогнозирование", "Анализ данных"]
+    )
+
+with header_cols[1]:
+    df, outlier_percentage = upload()
+
 if page == "Прогнозирование":
     st.set_page_config(page_title="Прогнозирование", layout="wide")
-
 
     top_cols = st.columns([2, 2, 2, 2, 2])
 
@@ -301,7 +303,7 @@ elif page == "Анализ данных":
 
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    st.subheader("График")
+    
     if df is not None and not df.empty:
         # Инициализация filtered_df в session_state, если еще не существует
         if 'filtered_df' not in st.session_state:
