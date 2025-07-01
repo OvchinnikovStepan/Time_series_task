@@ -11,10 +11,12 @@ from dashboard.forecasting import forecasting
 from dashboard.show_hist import show_hist
 from dashboard.show_autocorrelation import show_autocorrelation
 
+
 st.sidebar.title("Навигация")
 page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
 st.markdown(" ")
 st.markdown(" ")
+
 
 st.markdown("""
     <style>
@@ -43,7 +45,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-df, outlier_percentage = upload()
+header_cols = st. columns([2, 10])
+with header_cols[0]:
+    page = st.radio(
+        "Выбор страницы",
+        ["Прогнозирование", "Анализ данных"]
+    )
+
+with header_cols[1]:
+    df, outlier_percentage = upload()
+
 if page == "Прогнозирование":
     st.set_page_config(page_title="Прогнозирование", layout="wide")
 
@@ -191,23 +202,105 @@ if page == "Прогнозирование":
         else:
             st.markdown("Нет информации", unsafe_allow_html=True)
 
-        st.markdown("#### Выбрать модель")
-        st.markdown("""
-        <select style="width:100%; padding:8px; font-size:16px; font-family:Montserrat; font-weight:600; background-color: #2a2a2a; color: #ffffff; border: 1px solid #333; border-radius: 4px;">
-        <option>Модель 1</option>
-        <option>Модель 2</option>
-        <option>Модель 3</option>
-        </select>
-        """, unsafe_allow_html=True)
 
-        st.checkbox("Включить автоподбор параметров")
+            st.markdown("#### Выбрать модель")
+            option = st.selectbox(
+                "Выберите параметр",
+                ["SARIMA", "ETS", "Prophet"]
+            )
 
-        st.markdown(" ")
-        if st.button("Начать прогнозирование"):
-            if training_df is not None and target_sensor is not None:
-                st.write(f"Прогнозирование выполнено на основе {training_df.shape[0]} записей с целевой переменной: {target_sensor}")
-            else:
-                st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
+            @st.dialog("Выберите параметры")
+            def show_confirmation_dialog():
+                dialog_cols = st.columns([1, 1])
+                if option == "SARIMA":
+                    with dialog_cols[0]:
+                        S = st.number_input("Сезонность", key="S", value=0, step=1,format="%d")
+                        p = st.number_input("Порядок авторегрессии", key="p", value=0, step=1,format="%d")
+                        d = st.number_input("Порядок дифферненцирования ряда", key="d", value=0, step=1,format="%d")
+                        q = st.number_input("Порядок скользящего среднего", key="q", value=0, step=1,format="%d")
+                    with dialog_cols[1]:
+                        P = st.number_input("Порядок сезонной авторегрессии", key="P", value=0, step=1,format="%d")
+                        D = st.number_input("Порядок сезонного дифференциорования", key="D", value=0, step=1,format="%d")
+                        Q = st.number_input("Порядок сезонного скользящего среднего", key="Q", value=0, step=1,format="%d")
+                    if st.button("Продолжить", key="SARIMA_start"):
+                        st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
+                        st.rerun()
+                elif option == "ETS":
+                    with dialog_cols[0]:
+                        error_type = st.selectbox(
+                            "Тип ошибки",
+                            ["add", "mul"],
+                            key="error_type"
+                        )
+                        trend_type = st.selectbox(
+                            "Тип тренда",
+                            ["None", "add", "mul"],
+                            key="trend_type"
+                        )
+                        season_type = st.selectbox(
+                            "Тип сезона",
+                            ["None", "add", "mul"],
+                            key="season_type"
+                        )
+                    with dialog_cols[1]:
+                        seasonal_periods = st.number_input("Сезонность", key="seasonal_periods", value=0, step=1,format="%d")
+                        damped_trend = st.selectbox(
+                            "Дампируется ли тренд",
+                            ["True", "False"],
+                            key="damped_trend"
+                        )
+                    if st.button("Продолжить", key="ETS_start"):
+                        st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
+                        st.rerun()
+                elif option == "Prophet":
+                    with dialog_cols[0]:
+                        growth = st.selectbox(
+                            "Тип тренда",
+                            ["linear", "logistic"],
+                            key="growth"
+                        )
+                        seasonality_mode = st.selectbox(
+                            "Режим моделирования сезонных компонент",
+                            ["additive", "multiplicative"],
+                            key="seasonality_mode"
+                        )
+                        yearly_seasonality = st.selectbox(
+                            "Настройка годовой сезонности",
+                            ["True", "False"],
+                            key="yearly_seasonality"
+                        )
+                        weekly_seasonality = st.selectbox(
+                            "Настройка недельной сезонности",
+                            ["True", "False"],
+                            key="weekly_seasonality"
+                        )
+                    with dialog_cols[1]:
+                        daily_seasonality = st.selectbox(
+                            "Настройка дневной сезонности",
+                            ["True", "False"],
+                            key="daily_seasonality"
+                        )
+                        seasonality_prior_scale = st.number_input("Выраженность сезонных компонент", key="seasonality_prior_scale", value=0)
+                        changepoint_prior_scale = st.number_input("Чувствительность автоматического механизма обнаружения точек излома в тренде временного ряда", key="changepoint_prior_scale", value=0)
+                    if st.button("Продолжить", key="Prophet_start"):
+                        st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
+                        st.rerun()
+                        
+                    
+                        
+            CB_par = st.checkbox("Включить автоподбор параметров")
+
+            st.markdown(" ")
+            if st.button("Начать прогнозирование"):
+                if target_sensor is not None and CB_par: #training_df is not None and  <---#training_df ничего не получает
+                    st.write(f"Прогнозирование выполнено на основе записей с целевой переменной: {target_sensor}") #{training_df.shape[0]} 
+                elif  target_sensor is not None and not CB_par:
+                    show_confirmation_dialog()  # Показываем модальное окно
+                else:
+                    st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
+
+
+
 
 elif page == "Анализ данных":
     top_cols = st.columns([2, 2, 2, 2, 2])
@@ -231,7 +324,7 @@ elif page == "Анализ данных":
 
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    st.subheader("График")
+    
     if df is not None and not df.empty:
         if 'filtered_df' not in st.session_state:
             st.session_state['filtered_df'] = df
