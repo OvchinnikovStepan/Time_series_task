@@ -11,13 +11,6 @@ from dashboard.forecasting import forecasting
 from dashboard.show_hist import show_hist
 from dashboard.show_autocorrelation import show_autocorrelation
 
-
-st.sidebar.title("Навигация")
-page = st.sidebar.radio("Выберите страницу", ["Прогнозирование", "Анализ данных"])
-st.markdown(" ")
-st.markdown(" ")
-
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap');
