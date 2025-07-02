@@ -12,13 +12,13 @@ def prophet_processing_auto(params):
 
     train_df = pd.DataFrame({
         'ds': df_train.index,
-        'y': df_train.values
+        'y': df_train["sensor"].values
     })
     
     param_grid = {
-        'growth': ['linear', 'logistic'],
+        'growth': ['linear'],
         'seasonality_mode': ['additive', 'multiplicative'],
-        'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5],
+        'changepoint_prior_scale': [0.01, 0.1, 0.5],
         'seasonality_prior_scale': [0.1, 1.0, 10.0],
         'yearly_seasonality': [True, False],
         'weekly_seasonality': [True, False]
@@ -64,38 +64,23 @@ def prophet_processing_auto(params):
                     best_model = model
                     
             except Exception as e:
-                continue
+                print(f"ОШИБКА В ТРАЙ {e}")
     
     # Обучение лучшей модели на всех данных
     final_model = Prophet(**best_params)
-    final_model.fit(pd.DataFrame({
-        'ds': df_train.index,
-        'y': df_train.values
-    }))
+    final_model.fit(train_df)
     
     # Прогноз на тестовом наборе
     future = final_model.make_future_dataframe(
         periods=len(df_test)+params["duration"], 
         freq=pd.infer_freq(df_train.index))
     forecast = final_model.predict(future)
-    predictions = forecast.tail(len(df_test))['yhat']
+    predictions = forecast.tail(len(df_test)+params["duration"])['yhat']
     
     # Формирование возвращаемых данных
     model_params = {
         'best_params': best_params,
-        'validation_score': best_score,
-        'model_components': {
-            'growth': best_params['growth'],
-            'seasonality': {
-                'mode': best_params['seasonality_mode'],
-                'yearly': best_params.get('yearly_seasonality', True),
-                'weekly': best_params.get('weekly_seasonality', True)
-            },
-            'prior_scales': {
-                'changepoint': best_params['changepoint_prior_scale'],
-                'seasonality': best_params['seasonality_prior_scale']
-            }
-        }
+        'validation_score': best_score
     }
     
     return {

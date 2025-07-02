@@ -14,4 +14,15 @@ def send_model_request(payload: BaseModel):
 
         return response
 
+async def get_metrics(df_test_json: str, df_predict_json: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/metrics_process",
+            json={
+                "df_test": df_test_json,
+                "df_predict": df_predict_json
+            },
+            headers={"Content-Type": "application/json"}
+        )
+        return response
 

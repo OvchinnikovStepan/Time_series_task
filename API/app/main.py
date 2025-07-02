@@ -16,14 +16,14 @@ async def process_data(request: ModelRequestModel):
     params = json.loads(request.params)
 
     # Преобразование JSON-строк в DataFrame
-    try:
-        df_test = pd.read_json(params["df_test"], orient='table')
 
-        predict = routing_func(request)
-        predict_params = predict["model_params"]
-        df_predict = predict["predictions"]
-    except Exception as e:
-        return {"error": f"Failed to parse DataFrame (model): {str(e)}"}
+    df_test = pd.read_json(params["df_test"], orient='table')
+
+    predict = routing_func(request)
+    predict_params = predict["model_params"]
+    df_predict = predict["predictions"]
+
+
 
     try:
         metrics_response = await get_metrics(

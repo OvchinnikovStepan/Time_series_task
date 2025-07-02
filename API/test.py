@@ -10,7 +10,7 @@ from app.main import ModelRequestModel
 def create_simple_frame():
     # Начальная дата и количество записей
     start_date = datetime.now().replace(microsecond=0)
-    num_records = 20  # например, 20 записей
+    num_records = 100  # например, 20 записей
 
     # Генерируем даты (минута за минутой)
     dates = [start_date + timedelta(minutes=i) for i in range(num_records)]
@@ -42,12 +42,12 @@ json_df_test = df_test.to_json(orient='table', date_format='iso')
 params = {
     "df_train": json_df_train,
     "df_test": json_df_test,
-    "duration": 10
+    "duration": 5
 }
 
 # Формируем payload
 payload = {
-    'model_type': 'sarima',
+    'model_type': 'prophet',
     'auto_params': True,
     'params': json.dumps(params)
 }
