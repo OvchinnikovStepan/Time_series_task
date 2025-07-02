@@ -1,7 +1,7 @@
 from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 import pandas as pd
 from itertools import product
-from make_prediction_dataframe_func import make_prediction_dataframe
+from .make_prediction_dataframe_func import make_prediction_dataframe
 
 def ets_processing_auto(params):
     """

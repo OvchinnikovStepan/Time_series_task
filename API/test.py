@@ -4,60 +4,52 @@ from datetime import datetime, timedelta
 import requests
 import json
 from send_request import send_model_request
+from app.main import ModelRequestModel
 
-# === df_train (уже как в предыдущем примере) ===
-start_time = datetime.now().replace(microsecond=0)
-timestamps_train = [start_time + timedelta(minutes=i) for i in range(20)]
-sensor_1_train = np.random.uniform(0, 100, size=20)
-sensor_2_train = np.random.uniform(0, 100, size=20)
 
-df_train = pd.DataFrame({
-    'timestamp': timestamps_train,
-    'sensor_1': sensor_1_train.round(2),
-    'sensor_2': sensor_2_train.round(2)
-})
+def create_simple_frame():
+    # Начальная дата и количество записей
+    start_date = datetime.now().replace(microsecond=0)
+    num_records = 20  # например, 20 записей
 
-# === df_test (следующие 20 записей после окончания df_train) ===
-last_time_train = df_train['timestamp'].iloc[-1]  # последнее время из df_train
-timestamps_test = [last_time_train + timedelta(minutes=i+1) for i in range(20)]
-sensor_1_test = np.random.uniform(0, 100, size=20)
-sensor_2_test = np.random.uniform(0, 100, size=20)
+    # Генерируем даты (минута за минутой)
+    dates = [start_date + timedelta(minutes=i) for i in range(num_records)]
 
-df_test = pd.DataFrame({
-    'timestamp': timestamps_test,
-    'sensor_1': sensor_1_test.round(2),
-    'sensor_2': sensor_2_test.round(2)
-})
+    # Генерируем случайные значения датчика
+    sensor_values = np.random.uniform(0, 100, size=num_records).round(2)
 
-# === Вывод ===
-print("df_train:")
-print(df_train.head())
-print("\ndf_test:")
-print(df_test.head())
+    # Создаём DataFrame
+    df_test = pd.DataFrame({
+        'sensor': sensor_values
+    }, index=dates)
 
+    # Переименовываем индекс для наглядности
+    df_test.index.name = 'timestamp'
+
+    # Выводим первые строки
+    print(df_test.head())
+
+    return df_test
+
+
+# ==Подготовка данных==
+df_train = create_simple_frame()
+df_test = create_simple_frame()
 
 json_df_train = df_train.to_json(orient='records')
 json_df_test = df_test.to_json(orient='records')
 
-# Параметры модели
 params = {
-    'epochs': 10,
-    'batch_size': 32,
-    'learning_rate': 0.001
+    "df_train": json_df_train,
+    "df_test": json_df_test,
+    "duration": 0
 }
-
-
-json_params = json.dumps(params, indent=2, ensure_ascii=False)
-
 
 # Формируем payload
 payload = {
-    'model_type': 'sarina',
+    'model_type': 'sarima',
     'auto_params': True,
-    'params': json_params,
-    'df_train': json_df_train,
-    'df_test': json_df_test,
-    'duration': 'PT5M'
+    'params': json.dumps(params)
 }
 
 response = send_model_request(payload)

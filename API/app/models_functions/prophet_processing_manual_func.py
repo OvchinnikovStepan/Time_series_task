@@ -1,6 +1,6 @@
 from prophet import Prophet
 import pandas as pd
-from make_prediction_dataframe_func import make_prediction_dataframe
+from .make_prediction_dataframe_func import make_prediction_dataframe
 
 def prophet_processing_manual(params):
     """

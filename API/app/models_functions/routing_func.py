@@ -1,9 +1,11 @@
-from sarima_processing_manual_func import sarima_processing_manual
-from sarima_processing_auto_func import sarima_processing_auto
-from ets_processing_manual_func import ets_processing_manual
-from ets_processing_auto_func import ets_processing_auto
-from prophet_processing_manual_func import prophet_processing_manual
-from prophet_processing_auto_func import prophet_processing_auto
+from .sarima_processing_manual_func import sarima_processing_manual
+from .sarima_processing_auto_func import sarima_processing_auto
+from .ets_processing_manual_func import ets_processing_manual
+from .ets_processing_auto_func import ets_processing_auto
+from .prophet_processing_manual_func import prophet_processing_manual
+from .prophet_processing_auto_func import prophet_processing_auto
+from ..schemas import ModelRequestModel
+import json
 
 routing_map={
     "sarima":{
@@ -20,5 +22,6 @@ routing_map={
         }
 }
 
-def routing_func(params: dict):
-    routing_map[params.model_type][params.auto_params](params)
+def routing_func(request: ModelRequestModel):
+    params = json.loads(request.params)
+    routing_map[request.model_type][request.auto_params](params)

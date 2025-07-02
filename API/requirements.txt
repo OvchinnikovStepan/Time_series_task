@@ -4,8 +4,7 @@ statsmodels
 pandas
 prophet
 pydantic
-json
 requests
 fastapi
 httpx
-datatime
+uvicorn

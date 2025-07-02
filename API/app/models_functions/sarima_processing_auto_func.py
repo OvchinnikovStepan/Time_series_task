@@ -1,12 +1,15 @@
 from pmdarima import auto_arima
 import pandas as pd
-from make_prediction_dataframe_func import make_prediction_dataframe
+import json
+import re
+from .make_prediction_dataframe_func import make_prediction_dataframe
 
 def sarima_processing_auto(params):
     """
     - params:
         S - сезонность
     """
+
     df_train = pd.read_json(params["df_train"], orient='records')
     df_test = pd.read_json(params["df_test"], orient='records')
 
