@@ -6,6 +6,10 @@ from .models_functions.routing_func import routing_func
 from .metrics_functions.metrics_func import calculate_metrics
 from .schemas import ModelRequestModel, MetricsRequestModel
 
+import logging
+
+logging.getLogger('scipy').setLevel(logging.WARNING)
+
 app = FastAPI()
 
 @app.post("/api/v1/model_process")

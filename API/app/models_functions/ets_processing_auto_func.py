@@ -3,6 +3,9 @@ import pandas as pd
 from itertools import product
 from .make_prediction_dataframe_func import make_prediction_dataframe
 import json
+import logging
+
+logging.getLogger('scipy').setLevel(logging.WARNING)
 
 
 def ets_processing_auto(params):
@@ -20,10 +23,14 @@ def ets_processing_auto(params):
     season_types = [None, 'add', 'mul']
     damped_options = [False, True]
 
-    try:
-        seasonal_periods = params["params"].get("seasonal_periods", None)
-    except:
-        seasonal_periods = None
+    # try:
+
+    seasonal_periods = params["params"]["seasonal_periods"]
+    print(f"ЧИСЛО {seasonal_periods}")
+
+    # except Exception as e:
+    #     print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
+    #     seasonal_periods = None
 
     best_aic = float('inf')
     best_model = None
@@ -59,7 +66,7 @@ def ets_processing_auto(params):
 
 
     forecast_steps = len(df_test) + params["duration"]
-    predictions = best_model.forecast(steps=forecast_steps)
+    predictions = best_model.forecast(forecast_steps)
 
     model_params = {
         'model_type': {

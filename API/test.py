@@ -15,8 +15,12 @@ def create_simple_frame():
     # Генерируем даты (минута за минутой)
     dates = [start_date + timedelta(minutes=i) for i in range(num_records)]
 
+    # sensor_values = np.random.uniform(0, 100, size=num_records).round(2)
+
     # Генерируем случайные значения датчика
-    sensor_values = np.random.uniform(0, 100, size=num_records).round(2)
+    t = np.linspace(0, 25 * np.pi, num_records)  # временная ось от 0 до 2π
+    sensor_values = np.sin(t) * 50 + 50  # синусоида с амплитудой 50 и смещением 50
+    sensor_values = np.round(sensor_values, 2)
 
     # Создаём DataFrame
     df_test = pd.DataFrame({
@@ -42,12 +46,15 @@ json_df_test = df_test.to_json(orient='table', date_format='iso')
 params = {
     "df_train": json_df_train,
     "df_test": json_df_test,
-    "duration": 5
+    "duration": 5,
+    "params": {
+        "seasonal_periods": 4
+    }
 }
 
 # Формируем payload
 payload = {
-    'model_type': 'prophet',
+    'model_type': 'ets',
     'auto_params': True,
     'params': json.dumps(params)
 }
