@@ -36,13 +36,13 @@ def create_simple_frame():
 df_train = create_simple_frame()
 df_test = create_simple_frame()
 
-json_df_train = df_train.to_json(orient='records')
-json_df_test = df_test.to_json(orient='records')
+json_df_train = df_train.to_json(orient='table', date_format='iso')
+json_df_test = df_test.to_json(orient='table', date_format='iso')
 
 params = {
     "df_train": json_df_train,
     "df_test": json_df_test,
-    "duration": 0
+    "duration": 10
 }
 
 # Формируем payload

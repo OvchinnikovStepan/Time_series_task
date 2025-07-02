@@ -22,6 +22,7 @@ routing_map={
         }
 }
 
-def routing_func(request: ModelRequestModel):
+def routing_func(request: ModelRequestModel) -> dict:
     params = json.loads(request.params)
-    routing_map[request.model_type][request.auto_params](params)
+    result = routing_map[request.model_type][request.auto_params](params)
+    return result  # Возвращаем результат

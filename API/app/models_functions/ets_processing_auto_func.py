@@ -8,8 +8,8 @@ def ets_processing_auto(params):
     - params: словарь с параметрами:
         - seasonal_periods: int/None (период сезонности)
     """
-    df_train = pd.read_json(params["df_train"], orient='records')
-    df_test = pd.read_json(params["df_test"], orient='records')
+    df_train = pd.read_json(params["df_train"], orient='table')
+    df_test = pd.read_json(params["df_test"], orient='table')
 
     error_types = ['add', 'mul']
     trend_types = [None, 'add', 'mul']

@@ -2,6 +2,7 @@ import pandas as pd
 
 def make_prediction_dataframe(original_df, new_data, num_new_periods):
     # Определяем частоту исходного индекса
+     # типы колонок
     freq = pd.infer_freq(original_df.index)
     if freq is None:
         raise ValueError("Не удалось определить частоту временного индекса")

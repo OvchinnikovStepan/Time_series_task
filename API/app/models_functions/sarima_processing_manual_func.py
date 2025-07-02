@@ -13,8 +13,8 @@ def sarima_processing_manual(params):
         - D - порядок сезонного дифференциорования
         - Q - порядок сезонного скользящего среднего
     """
-    df_train = pd.read_json(params["df_train"], orient='records')
-    df_test = pd.read_json(params["df_test"], orient='records')
+    df_train = pd.read_json(params["df_train"], orient='table')
+    df_test = pd.read_json(params["df_test"], orient='table')
 
     hyper_params = params["params"]
     if  hyper_params["S"]:

@@ -10,8 +10,8 @@ def sarima_processing_auto(params):
         S - сезонность
     """
 
-    df_train = pd.read_json(params["df_train"], orient='records')
-    df_test = pd.read_json(params["df_test"], orient='records')
+    df_train = pd.read_json(params["df_train"], orient='table')
+    df_test = pd.read_json(params["df_test"], orient='table')
 
     try:
         season = params["params"]["S"]
@@ -34,7 +34,8 @@ def sarima_processing_auto(params):
         'seasonal_order': model.seasonal_order,
         'params': model.params()
     }
-    
+
+
     return {
         "predictions":  make_prediction_dataframe(df_train,predictions,params["duration"]),
         "model_params": model_params,

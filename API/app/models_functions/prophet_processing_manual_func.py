@@ -13,8 +13,8 @@ def prophet_processing_manual(params):
         - seasonality_prior_scale: float
         - changepoint_prior_scale: float
     """
-    df_train = pd.read_json(params["df_train"], orient='records')
-    df_test = pd.read_json(params["df_test"], orient='records')
+    df_train = pd.read_json(params["df_train"], orient='table')
+    df_test = pd.read_json(params["df_test"], orient='table')
     
     train_df = pd.DataFrame({
         'ds': df_train.index,

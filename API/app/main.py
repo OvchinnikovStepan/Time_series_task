@@ -17,21 +17,18 @@ async def process_data(request: ModelRequestModel):
 
     # Преобразование JSON-строк в DataFrame
     try:
-        df_test = pd.read_json(params["df_test"], orient='records')
-
-        # await asyncio.sleep(20)
+        df_test = pd.read_json(params["df_test"], orient='table')
 
         predict = routing_func(request)
         predict_params = predict["model_params"]
-        df_predict = predict['predictions']
-
+        df_predict = predict["predictions"]
     except Exception as e:
-        return {"error": f"Failed to parse DataFrame (models): {str(e)}"}
+        return {"error": f"Failed to parse DataFrame (model): {str(e)}"}
 
     try:
         metrics_response = await get_metrics(
-            df_test.to_json(orient='records'),
-            df_predict.to_json(orient='records')
+            df_test.to_json(orient='table', date_format='iso'),
+            df_predict.to_json(orient='table', date_format='iso')
         )
 
         if not metrics_response.is_success:
@@ -46,7 +43,7 @@ async def process_data(request: ModelRequestModel):
         "received_model_type": model_type,
         "auto_params": auto_params,
         "model_params": predict_params,
-        "df_predict": df_predict.to_json(orient='records'),
+        "df_predict": df_predict.to_json(orient='table', date_format='iso'),
         "metrics": metrics_response.json()
     }
 
@@ -58,8 +55,8 @@ async def process_data(request: MetricsRequestModel):
     # Извлечение данных
     # Преобразование JSON-строк в DataFrame
     try:
-        df_predict = pd.read_json(request.df_predict, orient='records')
-        df_test = pd.read_json(request.df_test, orient='records')
+        df_predict = pd.read_json(request.df_predict, orient='table')
+        df_test = pd.read_json(request.df_test, orient='table')
 
         # await asyncio.sleep(20)
 
