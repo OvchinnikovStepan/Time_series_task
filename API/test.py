@@ -12,7 +12,7 @@ def create_simple_frame():
     num_records = 100  # например, 20 записей
 
     # Генерируем даты (минута за минутой)
-    dates = [start_date + timedelta(minutes=i) for i in range(num_records)]
+    dates = [start_date + timedelta(hours=i) for i in range(num_records)]
 
     # sensor_values = np.random.uniform(0, 100, size=num_records).round(2)
 
@@ -43,7 +43,29 @@ async def main():
     df_test = create_simple_frame()
 
     params = {
-        "seasonal_periods": 4
+
+        "S":4,
+        "p":1,
+        "d":1,
+        "q":1,
+        "P":1,
+        "D":1,
+        "Q":1
+
+        # "seasonality_mode":  'multiplicative',
+        # "yearly_seasonality": False,
+        # "weekly_seasonality": False,
+        # "daily_seasonality": True,
+        # "seasonality_prior_scale": 1,
+        # "changepoint_prior_scale": 0.5
+
+
+# Параметры для ETS manual
+        # 'error_type': 'add',
+        # 'trend_type': 'add',
+        # 'season_type': 'mul',
+        # 'damped_trend': False,
+        # "seasonal_periods": 4
     }
 
     payload = create_model_payload('ets', True, 5, df_train, df_test, params)
