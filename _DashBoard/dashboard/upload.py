@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-
 def upload():
     upload_file = st.file_uploader("Загрузите CSV-файл", type=["csv"])
 
@@ -42,13 +41,24 @@ def upload():
                 st.error("Столбцы с данными датчиков не найдены.")
                 return None, None
 
+            valid_columns = []
             for col in df.columns:
                 try:
                     df[col] = pd.to_numeric(df[col], errors='raise').astype(np.float64)
+                    if df[col].isna().all():
+                        st.warning(f"Столбец {col} содержит только NaN и будет исключён.")
+                    else:
+                        valid_columns.append(col)
                 except:
-                    st.error(f"Ошибка: датасет некорректен, присутствует переменная, которая не является показателем датчика.")
+                    st.error(f"Ошибка: столбец {col} содержит некорректные данные, не являющиеся показателями датчика.")
                     return None, None
-                
+
+            df = df[valid_columns]
+
+            if df.empty:
+                st.error("Нет валидных столбцов с данными датчиков.")
+                return None, None
+
             df.fillna(df.median(), inplace=True)
 
             total_values = df.size
@@ -66,6 +76,5 @@ def upload():
         except Exception as e:
             st.error(f"Ошибка при обработке данных: {str(e)}")
             return None, None
-        
-        
+
     return None, None

@@ -15,15 +15,22 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
         st.error("Ошибка: Выберите хотя бы один датчик для отображения графика.")
         return None
 
+    # Инициализация session_state
+    if 'dragmode' not in st.session_state:
+        st.session_state.dragmode = 'select'
+    if 'selected_points' not in st.session_state:
+        st.session_state.selected_points = {}
+    if 'training_points' not in st.session_state:
+        st.session_state.training_points = {}
+    if 'training_sensors' not in st.session_state:
+        st.session_state.training_sensors = []
+    if 'training_triggered' not in st.session_state:
+        st.session_state.training_triggered = False
+    if 'plot_key' not in st.session_state:
+        st.session_state.plot_key = 0
+
     if flag:
-        if 'dragmode' not in st.session_state:
-            st.session_state.dragmode = 'select'
-        if 'selected_points' not in st.session_state:
-            st.session_state.selected_points = {}
-        if 'training_triggered' not in st.session_state:
-            st.session_state.training_triggered = False
-        if 'plot_key' not in st.session_state:
-            st.session_state.plot_key = 0
+        st.session_state.dragmode = 'select'
     else:
         st.session_state.dragmode = 'pan'
 
@@ -32,9 +39,7 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
     def build_plot(selected_points_data=None):
         fig = go.Figure()
 
-        colors = {}
-        for i, sensor in enumerate(selected_sensors):
-            colors[sensor] = f"hsl({int(i * 360 / max(1, len(selected_sensors)))},70%,50%)"
+        colors = {sensor: f"hsl({int(i * 360 / max(1, len(selected_sensors)))},70%,50%)" for i, sensor in enumerate(selected_sensors)}
 
         outliers_mask = {}
         for sensor in selected_sensors:
@@ -44,7 +49,7 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
 
         selected_x = set()
         if flag and selected_points_data:
-            selected_x = set(x for sensor in selected_sensors for x, _ in selected_points_data.get(sensor, []))
+            selected_x = set(x for sensor in selected_points_data for x, _ in selected_points_data.get(sensor, []))
 
         for sensor in selected_sensors:
             if sensor in filtered_df.columns:
@@ -107,15 +112,16 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
         new_selected_points = {}
         for point in selected_points:
             x = pd.Timestamp(point['x']).tz_localize(None)
-            for sensor in selected_sensors:
-                if sensor in filtered_df.columns:
-                    y = filtered_df[sensor].loc[filtered_df.index == x].iloc[0] if x in filtered_df.index else np.nan
-                    if not np.isnan(y):
-                        if sensor not in new_selected_points:
-                            new_selected_points[sensor] = []
-                        new_selected_points[sensor].append((x, y))
+            if x in filtered_df.index:
+                for i, sensor in enumerate(selected_sensors):
+                    if sensor in filtered_df.columns and point['curveNumber'] == i:
+                        y = filtered_df.at[x, sensor]
+                        if not np.isnan(y):
+                            if sensor not in new_selected_points:
+                                new_selected_points[sensor] = []
+                            if not any(px == x and py == y for px, py in new_selected_points[sensor]):
+                                new_selected_points[sensor].append((x, y))
         st.session_state.selected_points = new_selected_points
-        st.session_state.training_triggered = False
         st.session_state.plot_key += 1
         with plot_placeholder:
             fig = build_plot(st.session_state.selected_points)
@@ -129,22 +135,29 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
             with col1:
                 if st.button("Очистить выделение", key="clear_selection"):
                     st.session_state.selected_points = {}
+                    st.session_state.training_points = {}
+                    st.session_state.training_sensors = []
                     st.session_state.training_triggered = False
                     st.session_state.plot_key += 1
                     st.rerun()
             with col2:
                 if st.button("Использовать данные для обучения", key="use_for_training"):
+                    st.session_state.training_points = st.session_state.selected_points.copy()
+                    st.session_state.training_sensors = selected_sensors.copy()
                     st.session_state.training_triggered = True
                     st.session_state.plot_key += 1
+                    st.rerun()
 
-        if flag and st.session_state.selected_points and st.session_state.training_triggered:
+        if flag and st.session_state.training_triggered:
             export_data = {}
-            timestamps = sorted(set(x for sensor in st.session_state.selected_points for x, _ in st.session_state.selected_points[sensor]))
-            for sensor in selected_sensors:
-                values = [next((y for px, y in st.session_state.selected_points.get(sensor, []) if px == x), np.nan) for x in timestamps]
+            timestamps = sorted(set(x for sensor in st.session_state.training_points for x, _ in st.session_state.training_points.get(sensor, [])))
+            for sensor in st.session_state.training_sensors:
+                if sensor in st.session_state.training_points:
+                    values = [next((y for px, y in st.session_state.training_points[sensor] if px == x), np.nan) for x in timestamps]
+                else:
+                    values = [filtered_df.at[x, sensor] if x in filtered_df.index else np.nan for x in timestamps]
                 export_data[sensor] = values
             training_df = pd.DataFrame(export_data, index=timestamps)
             st.success("Данные подготовлены для обучения.")
-            st.dataframe(training_df)
 
     return training_df
