@@ -5,7 +5,7 @@ from typing import Optional
 class ModelRequestModel(BaseModel):
     model_type: str
     auto_params: bool
-    params: str  # JSON строка
+    information: str  # JSON строка
 
 
 class MetricsRequestModel(BaseModel):

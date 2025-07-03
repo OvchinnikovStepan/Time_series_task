@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import requests
-import json
-from send_request import send_model_request
-from app.main import ModelRequestModel
+import asyncio
+from app.request_functions.model_request_func import get_prediction
+from app.request_functions.model_payload_func import create_model_payload
 
 
 def create_simple_frame():
@@ -37,29 +36,22 @@ def create_simple_frame():
 
 
 # ==Подготовка данных==
-df_train = create_simple_frame()
-df_test = create_simple_frame()
 
-json_df_train = df_train.to_json(orient='table', date_format='iso')
-json_df_test = df_test.to_json(orient='table', date_format='iso')
 
-params = {
-    "df_train": json_df_train,
-    "df_test": json_df_test,
-    "duration": 5,
-    "params": {
+async def main():
+    df_train = create_simple_frame()
+    df_test = create_simple_frame()
+
+    params = {
         "seasonal_periods": 4
     }
-}
 
-# Формируем payload
-payload = {
-    'model_type': 'ets',
-    'auto_params': True,
-    'params': json.dumps(params)
-}
+    payload = create_model_payload('ets', True, 5, df_train, df_test, params)
 
-response = send_model_request(payload)
+    response = await get_prediction(payload)
 
-print("Status Code:", response.status_code)
-print("Response JSON:", response.json())
+    print("Status Code:", response.status_code)
+    print("Response JSON:", response.json())
+
+# Запуск
+asyncio.run(main())

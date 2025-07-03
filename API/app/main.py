@@ -4,7 +4,9 @@ import json
 import httpx
 from .models_functions.routing_func import routing_func
 from .metrics_functions.metrics_func import calculate_metrics
-from .schemas import ModelRequestModel, MetricsRequestModel
+from API.app.schemas import ModelRequestModel, MetricsRequestModel
+from API.app.request_functions.metrics_payload_func import create_metrics_payload
+from API.app.request_functions.metrics_request_func import get_metrics
 
 app = FastAPI()
 
@@ -13,11 +15,11 @@ async def process_data(request: ModelRequestModel):
     # Извлечение данных
     model_type = request.model_type
     auto_params = request.auto_params
-    params = json.loads(request.params)
+    information = json.loads(request.information)
 
     # Преобразование JSON-строк в DataFrame
 
-    df_test = pd.read_json(params["df_test"], orient='table')
+    df_test = pd.read_json(information["df_test"], orient='table')
 
     predict = routing_func(request)
     predict_params = predict["model_params"]
@@ -26,10 +28,9 @@ async def process_data(request: ModelRequestModel):
 
 
     try:
-        metrics_response = await get_metrics(
-            df_test.to_json(orient='table', date_format='iso'),
-            df_predict.to_json(orient='table', date_format='iso')
-        )
+        payload = create_metrics_payload(df_test, df_predict)
+
+        metrics_response = await get_metrics(payload)
 
         if not metrics_response.is_success:
             return {"error": f"Metrics service returned error: {metrics_response.status_code}"}
@@ -52,13 +53,10 @@ async def process_data(request: ModelRequestModel):
 
 @app.post("/api/v1/metrics_process")
 async def process_data(request: MetricsRequestModel):
-    # Извлечение данных
-    # Преобразование JSON-строк в DataFrame
+
     try:
         df_predict = pd.read_json(request.df_predict, orient='table')
         df_test = pd.read_json(request.df_test, orient='table')
-
-        # await asyncio.sleep(20)
 
         metrics = calculate_metrics(df_test, df_predict)
 
@@ -74,15 +72,3 @@ async def process_data(request: MetricsRequestModel):
 
     return response
 
-
-async def get_metrics(df_test_json: str, df_predict_json: str):
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "http://localhost:8000/api/v1/metrics_process",
-            json={
-                "df_test": df_test_json,
-                "df_predict": df_predict_json
-            },
-            headers={"Content-Type": "application/json"}
-        )
-        return response

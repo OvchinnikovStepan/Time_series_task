@@ -4,7 +4,7 @@ from .ets_processing_manual_func import ets_processing_manual
 from .ets_processing_auto_func import ets_processing_auto
 from .prophet_processing_manual_func import prophet_processing_manual
 from .prophet_processing_auto_func import prophet_processing_auto
-from ..schemas import ModelRequestModel
+from API.app.schemas import ModelRequestModel
 import json
 
 routing_map={
@@ -23,6 +23,7 @@ routing_map={
 }
 
 def routing_func(request: ModelRequestModel) -> dict:
-    params = json.loads(request.params)
-    result = routing_map[request.model_type][request.auto_params](params)
+    information = json.loads(request.information)
+    print(information)
+    result = routing_map[request.model_type][request.auto_params](information)
     return result  # Возвращаем результат

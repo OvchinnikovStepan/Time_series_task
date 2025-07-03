@@ -15,7 +15,6 @@ def ets_processing_auto(params):
     """
     df_train = pd.read_json(params["df_train"], orient='table')
     y = df_train["sensor"].values
-    print(y)
     df_test = pd.read_json(params["df_test"], orient='table')
 
     error_types = ['add', 'mul']
@@ -23,14 +22,12 @@ def ets_processing_auto(params):
     season_types = [None, 'add', 'mul']
     damped_options = [False, True]
 
-    # try:
-
-    seasonal_periods = params["params"]["seasonal_periods"]
-    print(f"ЧИСЛО {seasonal_periods}")
-
-    # except Exception as e:
-    #     print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
-    #     seasonal_periods = None
+    try:
+        seasonal_periods = params["params"]["seasonal_periods"]
+        print(f"ЧИСЛО {seasonal_periods}")
+    except Exception as e:
+        print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
+        seasonal_periods = None
 
     best_aic = float('inf')
     best_model = None
