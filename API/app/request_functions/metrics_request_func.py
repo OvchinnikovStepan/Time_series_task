@@ -13,7 +13,7 @@ async def get_metrics(payload: MetricsRequestModel) -> httpx.Response:
         config = json.load(f)
         url = config['url_metrics']
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=None) as client:
             response = await client.post(
                 url=url,
                 json=payload,

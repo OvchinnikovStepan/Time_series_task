@@ -24,6 +24,6 @@ routing_map={
 
 def routing_func(request: ModelRequestModel) -> dict:
     information = json.loads(request.information)
-    print(information)
+
     result = routing_map[request.model_type][request.auto_params](information)
     return result  # Возвращаем результат

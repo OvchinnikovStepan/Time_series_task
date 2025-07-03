@@ -3,13 +3,12 @@ import numpy as np
 from datetime import datetime, timedelta
 import asyncio
 from app.request_functions.model_request_func import get_prediction
-from app.request_functions.model_payload_func import create_model_payload
+from app.request_functions.create_model_payload_func import create_model_payload
 
 
-def create_simple_frame():
+def create_simple_frame(num_records = 100):
     # Начальная дата и количество записей
     start_date = datetime.now().replace(microsecond=0)
-    num_records = 100  # например, 20 записей
 
     # Генерируем даты (минута за минутой)
     dates = [start_date + timedelta(minutes=i) for i in range(num_records)]
@@ -40,13 +39,13 @@ def create_simple_frame():
 
 async def main():
     df_train = create_simple_frame()
-    df_test = create_simple_frame()
+    df_test = create_simple_frame(10)
 
     params = {
         "seasonal_periods": 4
     }
 
-    payload = create_model_payload('ets', True, 5, df_train, df_test, params)
+    payload = create_model_payload('prophet', True, 5, df_train, df_test, params)
 
     response = await get_prediction(payload)
 

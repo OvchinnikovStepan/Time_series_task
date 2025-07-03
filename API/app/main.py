@@ -1,11 +1,10 @@
 from fastapi import FastAPI
 import pandas as pd
 import json
-import httpx
 from .models_functions.routing_func import routing_func
 from .metrics_functions.metrics_func import calculate_metrics
 from API.app.schemas import ModelRequestModel, MetricsRequestModel
-from API.app.request_functions.metrics_payload_func import create_metrics_payload
+from API.app.request_functions.create_metrics_payload_func import create_metrics_payload
 from API.app.request_functions.metrics_request_func import get_metrics
 
 app = FastAPI()
@@ -17,26 +16,33 @@ async def process_data(request: ModelRequestModel):
     auto_params = request.auto_params
     information = json.loads(request.information)
 
-    # Преобразование JSON-строк в DataFrame
-
-    df_test = pd.read_json(information["df_test"], orient='table')
-
     predict = routing_func(request)
     predict_params = predict["model_params"]
     df_predict = predict["predictions"]
+    df_test = pd.read_json(information["df_test"], orient='table')
+
+    if len(df_test) > 0:
+        try:
+            payload = create_metrics_payload(df_test, df_predict)
+
+            metrics_response = await get_metrics(payload)
+
+            if not metrics_response.is_success:
+                metrics_response = {
+                    'error': f"Metrics service returned error: {metrics_response.status_code}"
+                }
+
+        except Exception as e:
+            metrics_response = {
+                'error': e
+            }
+
+        metrics_response_json = metrics_response.json()
+    else:
+        metrics_response_json = None
 
 
 
-    try:
-        payload = create_metrics_payload(df_test, df_predict)
-
-        metrics_response = await get_metrics(payload)
-
-        if not metrics_response.is_success:
-            return {"error": f"Metrics service returned error: {metrics_response.status_code}"}
-
-    except Exception as e:
-        return {"error": f"Failed to get metrics: {str(e)}"}
 
     # Пример обработки
     response = {
@@ -45,7 +51,7 @@ async def process_data(request: ModelRequestModel):
         "auto_params": auto_params,
         "model_params": predict_params,
         "df_predict": df_predict.to_json(orient='table', date_format='iso'),
-        "metrics": metrics_response.json()
+        "metrics": metrics_response_json
     }
 
     return response
@@ -59,7 +65,6 @@ async def process_data(request: MetricsRequestModel):
         df_test = pd.read_json(request.df_test, orient='table')
 
         metrics = calculate_metrics(df_test, df_predict)
-
 
     except Exception as e:
         return {"error": f"Failed to parse DataFrame: {str(e)}"}

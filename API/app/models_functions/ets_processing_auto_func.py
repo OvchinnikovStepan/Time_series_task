@@ -24,7 +24,6 @@ def ets_processing_auto(params):
 
     try:
         seasonal_periods = params["params"]["seasonal_periods"]
-        print(f"ЧИСЛО {seasonal_periods}")
     except Exception as e:
         print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
         seasonal_periods = None
@@ -81,6 +80,6 @@ def ets_processing_auto(params):
     }
 
     return {
-        "predictions": make_prediction_dataframe(df_train, predictions, params["duration"]),
+        "predictions": make_prediction_dataframe(df_train, predictions, forecast_steps),
         "model_params": model_params,
     }
