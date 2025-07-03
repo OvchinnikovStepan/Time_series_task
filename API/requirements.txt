@@ -1,0 +1,10 @@
+numpy==1.26.4
+pmdarima
+statsmodels
+pandas
+prophet
+pydantic
+requests
+fastapi
+httpx
+uvicorn
