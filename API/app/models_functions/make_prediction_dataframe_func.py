@@ -16,11 +16,8 @@ def make_prediction_dataframe(original_df, new_data, num_new_periods):
         periods=num_new_periods + 1,  # +1 потому что первая дата уже есть
         freq=freq
     )[1:]  # Исключаем первую дату (она уже есть)
-    
-    # Объединяем старый и новый индекс
-    extended_index = original_df.index.union(new_index)
-    
+
     # Создаем новый DataFrame с расширенным индексом
-    extended_df = pd.DataFrame(new_data,index=extended_index,columns=["predictions"])
+    extended_df = pd.DataFrame(new_data, index=new_index, columns=["predictions"])
     
     return extended_df
