@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from itertools import product
 from .make_prediction_dataframe_func import make_prediction_dataframe
-
+import json
 def prophet_processing_auto(params):
 
     df_train = pd.read_json(params["df_train"], orient='table')
@@ -18,8 +18,8 @@ def prophet_processing_auto(params):
     param_grid = {
         'growth': ['linear'],
         'seasonality_mode': ['additive', 'multiplicative'],
-        'changepoint_prior_scale': [0.01, 0.1, 0.5],
-        'seasonality_prior_scale': [0.1, 1.0, 10.0],
+        'changepoint_prior_scale': [ 0.1, 0.5], #0.01,
+        'seasonality_prior_scale': [0.1, 1.0], #, 10.0
         'yearly_seasonality': [True, False],
         'weekly_seasonality': [True, False]
     }
@@ -77,12 +77,23 @@ def prophet_processing_auto(params):
     forecast = final_model.predict(future)
     predictions = forecast.tail(len(df_test)+params["duration"])['yhat']
     
-    # Формирование возвращаемых данных
     model_params = {
-        'best_params': best_params,
-        'validation_score': best_score
+    "growth": model.growth,
+    "changepoints": model.changepoints.tolist(),  # datetime → список строк
+    "n_changepoints": model.n_changepoints,
+    "seasonality_mode": model.seasonality_mode,
+    "seasonalities": model.seasonalities,  # сезонности (годовая, недельная)
+    "params": {  # внутренние параметры (тренд, сезонности, шумы)
+        "k": model.params["k"][0].tolist(),  # коэффициент тренда
+        "m": model.params["m"][0].tolist(),  # смещение тренда
+        "sigma_obs": model.params["sigma_obs"][0].tolist(),  # шум данных
+        "beta": model.params["beta"][0].tolist(),  # коэффициенты сезонности
+    },
+    "holidays": model.holidays.to_dict(orient="records") if model.holidays is not None else None,
     }
-    
+    # Конвертируем в JSON (с обработкой datetime)
+    model_params = json.dumps(model_params, indent=4, default=str)
+
     return {
         "predictions": make_prediction_dataframe(df_train,predictions.values, len(df_test)+params["duration"]),
         "model_params": model_params

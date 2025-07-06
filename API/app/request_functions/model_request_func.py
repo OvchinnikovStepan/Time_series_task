@@ -1,6 +1,6 @@
 import json
 import httpx
-from API.app.schemas import ModelRequestModel
+from ..schemas import ModelRequestModel
 import os
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
