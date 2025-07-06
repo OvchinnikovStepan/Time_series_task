@@ -42,11 +42,10 @@ async def main():
     df_test = create_simple_frame(10)
 
     params = {
-
         "S":4,
         "p":1,
         "d":1,
-        "q":1,
+        "q":0,
         "P":1,
         "D":1,
         "Q":1
@@ -67,7 +66,7 @@ async def main():
         # "seasonal_periods": 4
     }
 
-    payload = create_model_payload('prophet', True, 5, df_train, df_test, params)
+    payload = create_model_payload('sarima', True, 5, df_train, df_test, params)
 
     response = await get_prediction(payload)
 

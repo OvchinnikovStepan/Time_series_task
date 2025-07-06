@@ -18,8 +18,8 @@ def prophet_processing_auto(params):
     param_grid = {
         'growth': ['linear'],
         'seasonality_mode': ['additive', 'multiplicative'],
-        'changepoint_prior_scale': [0.01, 0.1, 0.5],
-        'seasonality_prior_scale': [0.1, 1.0, 10.0],
+        'changepoint_prior_scale': [ 0.1, 0.5], #0.01,
+        'seasonality_prior_scale': [0.1, 1.0], #, 10.0
         'yearly_seasonality': [True, False],
         'weekly_seasonality': [True, False]
     }

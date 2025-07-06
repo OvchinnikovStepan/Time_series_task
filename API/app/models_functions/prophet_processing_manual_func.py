@@ -59,6 +59,6 @@ def prophet_processing_manual(params):
     # Конвертируем в JSON (с обработкой datetime)
     model_params = json.dumps(model_params, indent=4, default=str)
     return {
-        "predictions": make_prediction_dataframe(df_train,predictions.values,params["duration"]),
+        "predictions": make_prediction_dataframe(df_train,predictions.values,len(df_test)+params["duration"]),
         "model_params":  model_params
     }

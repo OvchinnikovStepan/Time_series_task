@@ -1,5 +1,6 @@
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import pandas as pd
+import json
 from .make_prediction_dataframe_func import make_prediction_dataframe
 
 def sarima_processing_manual(params):
@@ -16,8 +17,8 @@ def sarima_processing_manual(params):
     df_train = pd.read_json(params["df_train"], orient='table')
     df_test = pd.read_json(params["df_test"], orient='table')
 
-    hyper_params = params["params"]
-    if  hyper_params["S"]:
+    hyper_params = json.loads(params["params"])
+    if  hyper_params.get("S", False):
         model = SARIMAX(
             df_train,
             order=(hyper_params["p"], hyper_params["d"], hyper_params["q"]),
@@ -30,14 +31,14 @@ def sarima_processing_manual(params):
         ).fit(disp=-1)
 
     forecast_steps = len(df_test)+params["duration"]
-    predictions = model.get_forecast(steps=forecast_steps).predicted_mean
-    
+    predictions = pd.DataFrame(model.get_forecast(steps=forecast_steps).predicted_mean).rename(columns={'predicted_mean':"predictions"})
+    print("ПРЕДСКАЗАНИЯ",predictions["predictions"])
     model_params = {
-        'order': model.order,
-        'seasonal_order': model.seasonal_order,
-        'params': model.params()
+        'hyperparams':hyper_params,
+        'params': model.params
     }
+    
     return {
-        "predictions":  make_prediction_dataframe(df_train,predictions,params["duration"]),
+        "predictions":  predictions["predictions"],
         "model_params": model_params,
     }

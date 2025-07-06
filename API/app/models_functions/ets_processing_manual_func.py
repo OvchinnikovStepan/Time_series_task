@@ -45,6 +45,6 @@ def ets_processing_manual(params):
     }
     
     return {
-        "predictions": make_prediction_dataframe(df_train,predictions,params["duration"]),
+        "predictions": make_prediction_dataframe(df_train,predictions,forecast_steps),
         "model_params": model_params
     }

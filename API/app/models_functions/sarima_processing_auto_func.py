@@ -37,7 +37,7 @@ def sarima_processing_auto(params):
 
 
     return {
-        "predictions": make_prediction_dataframe(df_train,predictions,params["duration"]),
+        "predictions": make_prediction_dataframe(df_train,predictions,forecast_steps),
 
         "model_params": model_params,
     }
