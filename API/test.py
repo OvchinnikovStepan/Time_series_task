@@ -1,66 +1,77 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import requests
-import json
-from send_request import send_model_request
-
-# === df_train (уже как в предыдущем примере) ===
-start_time = datetime.now().replace(microsecond=0)
-timestamps_train = [start_time + timedelta(minutes=i) for i in range(20)]
-sensor_1_train = np.random.uniform(0, 100, size=20)
-sensor_2_train = np.random.uniform(0, 100, size=20)
-
-df_train = pd.DataFrame({
-    'timestamp': timestamps_train,
-    'sensor_1': sensor_1_train.round(2),
-    'sensor_2': sensor_2_train.round(2)
-})
-
-# === df_test (следующие 20 записей после окончания df_train) ===
-last_time_train = df_train['timestamp'].iloc[-1]  # последнее время из df_train
-timestamps_test = [last_time_train + timedelta(minutes=i+1) for i in range(20)]
-sensor_1_test = np.random.uniform(0, 100, size=20)
-sensor_2_test = np.random.uniform(0, 100, size=20)
-
-df_test = pd.DataFrame({
-    'timestamp': timestamps_test,
-    'sensor_1': sensor_1_test.round(2),
-    'sensor_2': sensor_2_test.round(2)
-})
-
-# === Вывод ===
-print("df_train:")
-print(df_train.head())
-print("\ndf_test:")
-print(df_test.head())
+import asyncio
+from app.request_functions.model_request_func import get_prediction
+from app.request_functions.create_model_payload_func import create_model_payload
 
 
-json_df_train = df_train.to_json(orient='records')
-json_df_test = df_test.to_json(orient='records')
+def create_simple_frame(num_records = 100):
+    # Начальная дата и количество записей
+    start_date = datetime.now().replace(microsecond=0)
 
-# Параметры модели
-params = {
-    'epochs': 10,
-    'batch_size': 32,
-    'learning_rate': 0.001
-}
+    # Генерируем даты (минута за минутой)
+    dates = [start_date + timedelta(hours=i) for i in range(num_records)]
+
+    # sensor_values = np.random.uniform(0, 100, size=num_records).round(2)
+
+    # Генерируем случайные значения датчика
+    t = np.linspace(0, 25 * np.pi, num_records)  # временная ось от 0 до 2π
+    sensor_values = np.sin(t) * 50 + 50  # синусоида с амплитудой 50 и смещением 50
+    sensor_values = np.round(sensor_values, 2)
+
+    # Создаём DataFrame
+    df_test = pd.DataFrame({
+        'sensor': sensor_values
+    }, index=dates)
+
+    # Переименовываем индекс для наглядности
+    df_test.index.name = 'timestamp'
+
+    # Выводим первые строки
+    print(df_test.head())
+
+    return df_test
 
 
-json_params = json.dumps(params, indent=2, ensure_ascii=False)
+# ==Подготовка данных==
 
 
-# Формируем payload
-payload = {
-    'model_type': 'sarina',
-    'auto_params': True,
-    'params': json_params,
-    'df_train': json_df_train,
-    'df_test': json_df_test,
-    'duration': 'PT5M'
-}
+async def main():
+    df_train = create_simple_frame()
+    df_test = create_simple_frame(10)
 
-response = send_model_request(payload)
+    params = {
+        "S":4,
+        "p":1,
+        "d":1,
+        "q":0,
+        "P":1,
+        "D":1,
+        "Q":1
 
-print("Status Code:", response.status_code)
-print("Response JSON:", response.json())
+        # "seasonality_mode":  'multiplicative',
+        # "yearly_seasonality": False,
+        # "weekly_seasonality": False,
+        # "daily_seasonality": True,
+        # "seasonality_prior_scale": 1,
+        # "changepoint_prior_scale": 0.5
+
+
+# Параметры для ETS manual
+        # 'error_type': 'add',
+        # 'trend_type': 'add',
+        # 'season_type': 'mul',
+        # 'damped_trend': False,
+        # "seasonal_periods": 4
+    }
+
+    payload = create_model_payload('sarima', True, 5, df_train, df_test, params)
+
+    response = await get_prediction(payload)
+
+    print("Status Code:", response.status_code)
+    print("Response JSON:", response.json())
+
+# Запуск
+asyncio.run(main())
