@@ -1,6 +1,6 @@
 import json
 import httpx
-from API.app.schemas import MetricsRequestModel
+from app.schemas import MetricsRequestModel
 import os
 
 

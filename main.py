@@ -1,5 +1,9 @@
 import streamlit as st
 import pandas as pd
+import json
+import httpx
+import asyncio
+from datetime import timedelta
 from dashboard.upload import upload
 from dashboard.info_about_dataframe import info_about_dataframe
 from dashboard.select_time_interval import start_date, end_date, filter_dataframe
@@ -10,7 +14,11 @@ from dashboard.show_pairplot import show_pairplot
 from dashboard.forecasting import forecasting
 from dashboard.show_hist import show_hist
 from dashboard.show_autocorrelation import show_autocorrelation
-
+from API.app.request_functions.create_model_payload_func import create_model_payload
+from API.app.request_functions.model_request_func import get_prediction
+import os
+os.environ["STREAMLIT_SERVER_WATCH_FILE_BLACKLIST"] = ".*/__pycache__/.*,.*\\.pyc,.*\\.pyo,.*\\.pyd"
+os.environ["STREAMLIT_SERVER_ENABLE_WATCHER"] = "false"  # Полное отключение при проблемах
 
 st.markdown("""
     <style>
@@ -39,7 +47,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-header_cols = st. columns([2, 10])
+header_cols = st.columns([2, 10])
 with header_cols[0]:
     page = st.radio(
         "Выбор страницы",
@@ -214,100 +222,182 @@ if page == "Прогнозирование":
         st.markdown("#### Выбрать модель")
         option = st.selectbox(
             "Выберите параметр",
-            ["SARIMA", "ETS", "Prophet"]
+            ["sarima", "ets", "prophet"],
+            key="model_select"
         )
 
         @st.dialog("Выберите параметры")
         def show_confirmation_dialog():
+            params = {}
             dialog_cols = st.columns([1, 1])
-            if option == "SARIMA":
+            if option == "sarima":
                 with dialog_cols[0]:
-                    S = st.number_input("Сезонность", key="S", value=0, step=1,format="%d")
-                    p = st.number_input("Порядок авторегрессии", key="p", value=0, step=1,format="%d")
-                    d = st.number_input("Порядок дифферненцирования ряда", key="d", value=0, step=1,format="%d")
-                    q = st.number_input("Порядок скользящего среднего", key="q", value=0, step=1,format="%d")
+                    params['S'] = st.number_input("Сезонность", key="S", value=0, step=1, format="%d")
+                    params['p'] = st.number_input("Порядок авторегрессии", key="p", value=0, step=1, format="%d")
+                    params['d'] = st.number_input("Порядок дифференцирования ряда", key="d", value=0, step=1, format="%d")
+                    params['q'] = st.number_input("Порядок скользящего среднего", key="q", value=0, step=1, format="%d")
                 with dialog_cols[1]:
-                    P = st.number_input("Порядок сезонной авторегрессии", key="P", value=0, step=1,format="%d")
-                    D = st.number_input("Порядок сезонного дифференциорования", key="D", value=0, step=1,format="%d")
-                    Q = st.number_input("Порядок сезонного скользящего среднего", key="Q", value=0, step=1,format="%d")
-                if st.button("Продолжить", key="SARIMA_start"):
-                    st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
-                    st.rerun()
-            elif option == "ETS":
+                    params['P'] = st.number_input("Порядок сезонной авторегрессии", key="P", value=0, step=1, format="%d")
+                    params['D'] = st.number_input("Порядок сезонного дифференцирования", key="D", value=0, step=1, format="%d")
+                    params['Q'] = st.number_input("Порядок сезонного скользящего среднего", key="Q", value=0, step=1, format="%d")
+            elif option == "ets":
                 with dialog_cols[0]:
-                    error_type = st.selectbox(
+                    params['error_type'] = st.selectbox(
                         "Тип ошибки",
                         ["add", "mul"],
                         key="error_type"
                     )
-                    trend_type = st.selectbox(
+                    params['trend_type'] = st.selectbox(
                         "Тип тренда",
                         ["None", "add", "mul"],
                         key="trend_type"
                     )
-                    season_type = st.selectbox(
+                    params['season_type'] = st.selectbox(
                         "Тип сезона",
                         ["None", "add", "mul"],
                         key="season_type"
                     )
                 with dialog_cols[1]:
-                    seasonal_periods = st.number_input("Сезонность", key="seasonal_periods", value=0, step=1,format="%d")
-                    damped_trend = st.selectbox(
+                    params['seasonal_periods'] = st.number_input("Сезонность", key="seasonal_periods", value=0, step=1, format="%d")
+                    params['damped_trend'] = st.selectbox(
                         "Дампируется ли тренд",
                         ["True", "False"],
                         key="damped_trend"
-                    )
-                if st.button("Продолжить", key="ETS_start"):
-                    st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
-                    st.rerun()
-            elif option == "Prophet":
+                    ) == "True"
+            elif option == "prophet":
                 with dialog_cols[0]:
-                    growth = st.selectbox(
+                    params['growth'] = st.selectbox(
                         "Тип тренда",
                         ["linear", "logistic"],
                         key="growth"
                     )
-                    seasonality_mode = st.selectbox(
+                    params['seasonality_mode'] = st.selectbox(
                         "Режим моделирования сезонных компонент",
                         ["additive", "multiplicative"],
                         key="seasonality_mode"
                     )
-                    yearly_seasonality = st.selectbox(
+                    params['yearly_seasonality'] = st.selectbox(
                         "Настройка годовой сезонности",
                         ["True", "False"],
                         key="yearly_seasonality"
-                    )
-                    weekly_seasonality = st.selectbox(
+                    ) == "True"
+                    params['weekly_seasonality'] = st.selectbox(
                         "Настройка недельной сезонности",
                         ["True", "False"],
                         key="weekly_seasonality"
-                    )
+                    ) == "True"
                 with dialog_cols[1]:
-                    daily_seasonality = st.selectbox(
+                    params['daily_seasonality'] = st.selectbox(
                         "Настройка дневной сезонности",
                         ["True", "False"],
                         key="daily_seasonality"
-                    )
-                    seasonality_prior_scale = st.number_input("Выраженность сезонных компонент", key="seasonality_prior_scale", value=0)
-                    changepoint_prior_scale = st.number_input("Чувствительность автоматического механизма обнаружения точек излома в тренде временного ряда", key="changepoint_prior_scale", value=0)
-                if st.button("Продолжить", key="Prophet_start"):
-                    st.success("Прогноз выполняется") # Добавить реализацию прогнозирования 
-                    st.rerun()
-                    
-                
-                    
+                    ) == "True"
+                    params['seasonality_prior_scale'] = st.number_input("Выраженность сезонных компонент", key="seasonality_prior_scale", value=10.0)
+                    params['changepoint_prior_scale'] = st.number_input("Чувствительность автоматического механизма обнаружения точек излома в тренде временного ряда", key="changepoint_prior_scale", value=0.05)
+
+            if st.button("Подтвердить параметры", key=f"{option}_start"):
+                # Сохраняем параметры в session_state
+                st.session_state['params'] = params
+                st.rerun()
+
+        @st.dialog("Выберите количество предсказаний")
+        def select_duration():
+            st.markdown("Задайте количество предсказаний")
+            duration = st.number_input("Количество предсказаний", min_value=1, value=1, step=1, format="%d")
+            
+            if st.button("Подтвердить", key="confirm_duration"):
+                st.session_state['duration'] = duration
+                st.rerun()
+        
+        @st.dialog("Выберите сезонность")
+        def select_seasonality():
+            st.markdown("Задайте период сезонности")
+            params = {}  # Получаем существующие параметры или создаем пустой словарь
+            if option in ["sarima", "ets"]:
+                if option == "sarima":
+                    params['S'] = st.number_input("Сезонность", min_value=1, value=12, step=1, format="%d")
+                elif option == "ets":
+                    params['seasonal_periods'] = st.number_input("Сезонность", min_value=1, value=12, step=1, format="%d")
+            
+            if st.button("Подтвердить", key="confirm_seasonality"):
+                st.session_state['params'] = params
+                st.rerun()
+
         CB_par = st.checkbox("Включить автоподбор параметров")
 
         st.markdown(" ")
+        if st.button("Выбрать количество предсказаний"):
+            select_duration()
+
+        if CB_par and option in ["sarima", "ets"]:
+            if st.button("Выбрать сезонность", key="select_seasonality_button"):
+                select_seasonality()
+
+        if not CB_par:
+            if st.button("Выбрать параметры модели"):
+                show_confirmation_dialog()
+
         if st.button("Начать прогнозирование"):
-            if target_sensor is not None and CB_par: #training_df is not None and  <---#training_df ничего не получает
-                st.write(f"Прогнозирование выполнено на основе записей с целевой переменной: {target_sensor}") #{training_df.shape[0]} 
-            elif  target_sensor is not None and not CB_par:
-                show_confirmation_dialog()  # Показываем модальное окно
+            if training_df is not None and not training_df.empty and target_sensor:
+                if 'duration' not in st.session_state:
+                    st.error("Ошибка: Сначала выберите количество предсказаний!")
+                elif not CB_par and 'params' not in st.session_state:
+                    st.error("Ошибка: Сначала выберите параметры модели!")
+                elif CB_par and option in ["sarima", "ets"] and 'params' not in st.session_state:
+                    st.error("Ошибка: Для выбранной модели с автоподбором необходимо указать сезонность!")
+                else:
+                    # Формируем df_train с только target_sensor, переименованным в 'sensor'
+                    df_train = training_df[[target_sensor]].copy()
+                    df_train = df_train.rename(columns={target_sensor: 'sensor'})
+                    
+                    # Проверяем, что индекс является DatetimeIndex
+                    if not isinstance(df_train.index, pd.DatetimeIndex):
+                        st.error("Ошибка: Индекс df_train должен быть типа DatetimeIndex")
+                        df_train = None
+
+                    # Определяем последнюю временную метку в df_train
+                    end_training_time = df_train.index.max() if df_train is not None and not df_train.empty else None
+                    
+                    # Формируем df_test как остаток датасета с только target_sensor, переименованным в 'sensor'
+                    df_test = None
+                    if df is not None and not df.empty and end_training_time is not None:
+                        df_test = df[df.index > end_training_time][[target_sensor]]
+                        df_test = df_test.rename(columns={target_sensor: 'sensor'})
+                        if df_test.empty:
+                            st.warning("Предупреждение: df_test пуст, так как training_df охватывает весь временной диапазон df.")
+
+                    if df_train is not None:
+                        params = st.session_state.get('params', {})
+
+                        # Формируем payload
+                        payload = create_model_payload(
+                            model_type=option,
+                            auto_params=CB_par,
+                            duration=st.session_state['duration'],
+                            df_train=df_train,
+                            df_test=df_test,
+                            params=params
+                        )
+                        
+                        # Выполняем запрос к API
+                        try:
+                            response = asyncio.run(get_prediction(payload))
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.session_state['forecast_result'] = result
+                                st.success(f"Прогноз выполнен для {target_sensor} с автоматическим подбором параметров!" if CB_par else f"Прогноз выполнен для {target_sensor}!")
+                            else:
+                                st.error(f"Ошибка API: {response.status_code} - {response.text}")
+                        except Exception as e:
+                            st.error(f"Ошибка при выполнении прогноза: {str(e)}")
+                    else:
+                        st.error("Ошибка: Не удалось подготовить df_train для прогнозирования.")
             else:
-                st.error("Загрузите DataFrame, выберите интервал, данные для обучения и целевую переменную.")
+                st.error("Ошибка: Загрузите DataFrame, выберите данные для обучения и целевую переменную.")
 
-
+    result = st.session_state.get('forecast_result', None)
+    if result:
+        st.markdown(f"Результат прогнозирования: {result}")
 
 
 elif page == "Анализ данных":
@@ -332,7 +422,6 @@ elif page == "Анализ данных":
 
     st.set_page_config(page_title="Анализ данных", layout="wide")
 
-    
     if df is not None and not df.empty:
         if 'filtered_df' not in st.session_state:
             st.session_state['filtered_df'] = df

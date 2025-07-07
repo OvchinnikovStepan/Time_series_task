@@ -3,9 +3,9 @@ import pandas as pd
 import json
 from .models_functions.routing_func import routing_func
 from .metrics_functions.metrics_func import calculate_metrics
-from API.app.schemas import ModelRequestModel, MetricsRequestModel
-from API.app.request_functions.create_metrics_payload_func import create_metrics_payload
-from API.app.request_functions.metrics_request_func import get_metrics
+from app.schemas import ModelRequestModel, MetricsRequestModel
+from app.request_functions.create_metrics_payload_func import create_metrics_payload
+from app.request_functions.metrics_request_func import get_metrics
 
 app = FastAPI()
 

@@ -22,11 +22,10 @@ def ets_processing_auto(params):
     season_types = [None, 'add', 'mul']
     damped_options = [False, True]
 
-    try:
-        seasonal_periods = params["params"]["seasonal_periods"]
-    except Exception as e:
-        print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
-        seasonal_periods = None
+
+    hyperparams=json.loads(params["params"])
+
+    seasonal_periods = hyperparams.get("seasonal_periods", None)
 
     best_aic = float('inf')
     best_model = None
@@ -46,17 +45,12 @@ def ets_processing_auto(params):
                              trend=trend,
                              seasonal=season,
                              seasonal_periods=seasonal_periods,
-                             damped_trend=damped).fit()
+                             damped_trend=damped).fit(maxiter=10000)
 
             if model.aic < best_aic:
                 best_aic = model.aic
                 best_model = model
-                best_params = {
-                    'error_type': err,
-                    'trend_type': trend,
-                    'season_type': season,
-                    'damped_trend': damped
-                }
+
         except Exception as e:
             print(f"ОШИБКА В ТРАЙ {e}")
 
