@@ -2,8 +2,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import asyncio
+from io import StringIO
 from app.request_functions.model_request_func import get_prediction
 from app.request_functions.create_model_payload_func import create_model_payload
+from app.request_functions.metrics_request_func import get_metrics
+from app.request_functions.create_metrics_payload_func import create_metrics_payload
 
 
 def create_simple_frame(num_records = 100):
@@ -66,9 +69,19 @@ async def main():
         # "seasonal_periods": 4
     }
 
-    payload = create_model_payload('sarima', True, 5, df_train, df_test, params)
+    payload = create_model_payload(True, 5, df_train, params)
 
-    response = await get_prediction(payload)
+    response = await get_prediction(payload, "ets")
+
+    print("Status Code:", response.status_code)
+    print("Response JSON:", response.json())
+    print("______________________METRICS________________________")
+
+    df_predict = pd.read_json(StringIO(response.json()["df_predict"]), orient='table')
+
+    metrics_payload = create_metrics_payload(df_predict, df_test)
+
+    response = await get_metrics(metrics_payload)
 
     print("Status Code:", response.status_code)
     print("Response JSON:", response.json())

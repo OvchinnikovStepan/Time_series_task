@@ -1,4 +1,5 @@
 {
-  "url_models": "http://localhost:8000/api/v1/model_process",
-  "url_metrics": "http://localhost:8000/api/v1/metrics_process"
+  "url_models": "http://localhost:8000/api/models",
+  "url_metrics": "http://localhost:8000/api/metrics",
+  "models": ["sarima", "ets", "prophet"]
 }
