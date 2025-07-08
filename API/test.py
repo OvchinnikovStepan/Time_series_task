@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import asyncio
 from io import StringIO
+from app.request_functions.get_models_func import get_models
 from app.request_functions.model_request_func import get_prediction
 from app.request_functions.create_model_payload_func import create_model_payload
 from app.request_functions.metrics_request_func import get_metrics
@@ -85,6 +86,13 @@ async def main():
 
     print("Status Code:", response.status_code)
     print("Response JSON:", response.json())
+    print("______________________MODELS_LIST________________________")
+
+    response = await get_models()
+
+    print("Status Code:", response.status_code)
+    print("Response JSON:", response.json())
+
 
 # Запуск
 asyncio.run(main())

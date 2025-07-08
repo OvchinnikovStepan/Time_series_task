@@ -45,8 +45,6 @@ async def process_data(request: MetricsRequest):
             'error': e
         }
 
-
-    # Пример обработки
     response = {
         "metrics": metrics
     }
@@ -55,7 +53,7 @@ async def process_data(request: MetricsRequest):
 
 #Функция обработки запроса получения списка предсказаний
 @app.get("/api/models")
-async def process_data(request: MetricsRequest):
+async def process_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(current_dir, '..', 'config.json')
 
@@ -68,8 +66,6 @@ async def process_data(request: MetricsRequest):
         return {
             'error': e
         }
-
-    # Пример обработки
     response = {
         "models": models
     }
