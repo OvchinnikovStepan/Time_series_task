@@ -20,12 +20,9 @@ def ets_processing_auto(params):
     trend_types = [None, 'add', 'mul']
     season_types = [None, 'add', 'mul']
     damped_options = [False, True]
-
-    try:
-        seasonal_periods = params["hyper_params"]["seasonal_periods"]
-    except Exception as e:
-        print(f"ОШИБКА ПРИ СЧИТЫВАНИИ ПЕРИОДА {e}")
-        seasonal_periods = None
+    
+    hyper_params = json.loads(params["params"])
+    seasonal_periods=hyper_params.get("seasonal_periods",None)
 
     best_aic = float('inf')
     best_model = None

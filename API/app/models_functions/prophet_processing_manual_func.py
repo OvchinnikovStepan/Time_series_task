@@ -13,7 +13,6 @@ def prophet_processing_manual(params):
         - changepoint_prior_scale: float
     """
     df_train = pd.read_json(params["df_train"], orient='table')
-    df_test = pd.read_json(params["df_test"], orient='table')
     
     train_df = pd.DataFrame({
         'ds': df_train.index,
@@ -35,11 +34,11 @@ def prophet_processing_manual(params):
     model.fit(train_df)
     
     future = model.make_future_dataframe(
-        periods=len(df_test)+params["duration"],
+        periods=params["horizon"],
         freq=pd.infer_freq(df_train.index))
     
     forecast = model.predict(future)
-    predictions = forecast.tail(len(df_test)+params["duration"])['yhat']
+    predictions = forecast.tail(params["horizon"])['yhat']
     
     model_params = {
     "growth": model.growth,
@@ -59,6 +58,6 @@ def prophet_processing_manual(params):
     # Конвертируем в JSON (с обработкой datetime)
     model_params = json.dumps(model_params, indent=4, default=str)
     return {
-        "predictions": make_prediction_dataframe(df_train,predictions.values,len(df_test)+params["duration"]),
+        "predictions": make_prediction_dataframe(df_train,predictions.values,params["horizon"]),
         "model_params":  model_params
     }

@@ -11,12 +11,9 @@ def sarima_processing_auto(params):
     """
 
     df_train = pd.read_json(params["df_train"], orient='table')
-    df_test = pd.read_json(params["df_test"], orient='table')
 
-    try:
-        season = params["params"]["S"]
-    except:
-        season = 1
+    hyper_params = json.loads(params["params"])
+    season=hyper_params.get("S",0)
 
     model = auto_arima(
         df_train,
@@ -26,7 +23,7 @@ def sarima_processing_auto(params):
         suppress_warnings=True
     )
     
-    forecast_steps = len(df_test)+params["duration"]
+    forecast_steps = params["horizon"]
     predictions = model.predict(n_periods=forecast_steps)
     
     model_params = {
