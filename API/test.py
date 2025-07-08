@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import asyncio
+import os
+import json
 from io import StringIO
 from app.request_functions.get_models_func import get_models
 from app.request_functions.model_request_func import get_prediction
@@ -70,28 +72,39 @@ async def main():
         # "seasonal_periods": 4
     }
 
-    payload = create_model_payload(True, 5, df_train, params)
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(current_dir, '.', 'config.json')
 
-    response = await get_prediction(payload, "ets")
 
-    print("Status Code:", response.status_code)
-    print("Response JSON:", response.json())
-    print("______________________METRICS________________________")
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+        url = config['url']
 
-    df_predict = pd.read_json(StringIO(response.json()["df_predict"]), orient='table')
+        payload = create_model_payload(True, 5, df_train, params)
 
-    metrics_payload = create_metrics_payload(df_predict, df_test)
+        response = await get_prediction(url, payload, "ets")
 
-    response = await get_metrics(metrics_payload)
+        print("Status Code:", response.status_code)
+        print("Response JSON:", response.json())
+        print("______________________METRICS________________________")
 
-    print("Status Code:", response.status_code)
-    print("Response JSON:", response.json())
-    print("______________________MODELS_LIST________________________")
+        df_predict = pd.read_json(StringIO(response.json()["df_predict"]), orient='table')
 
-    response = await get_models()
+        metrics_payload = create_metrics_payload(df_predict, df_test)
 
-    print("Status Code:", response.status_code)
-    print("Response JSON:", response.json())
+        response = await get_metrics(url, metrics_payload)
+
+        print("Status Code:", response.status_code)
+        print("Response JSON:", response.json())
+        print("______________________MODELS_LIST________________________")
+
+        response = await get_models(url)
+
+        print("Status Code:", response.status_code)
+        print("Response JSON:", response.json())
+
+
 
 
 # Запуск
