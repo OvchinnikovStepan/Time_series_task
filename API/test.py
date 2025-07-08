@@ -38,8 +38,9 @@ def create_simple_frame(num_records = 100):
 
 
 async def main():
-    df_train = create_simple_frame()
-    df_test = create_simple_frame(10)
+    df = create_simple_frame()
+    df_train=df[:90]
+    df_test=df[90:]
 
     params = {
         "S":4,
