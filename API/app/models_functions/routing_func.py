@@ -4,8 +4,7 @@ from .ets_processing_manual_func import ets_processing_manual
 from .ets_processing_auto_func import ets_processing_auto
 from .prophet_processing_manual_func import prophet_processing_manual
 from .prophet_processing_auto_func import prophet_processing_auto
-from app.schemas import ModelRequestModel
-import json
+from ..schemas import ModelRequest
 
 routing_map={
     "sarima":{
@@ -22,8 +21,7 @@ routing_map={
         }
 }
 
-def routing_func(request: ModelRequestModel) -> dict:
-    information = json.loads(request.information)
-
-    result = routing_map[request.model_type][request.auto_params](information)
+def routing_func(model_type, request: ModelRequest) -> dict:
+    request_json = request.dict()
+    result = routing_map[model_type][request.auto_params](request_json)
     return result  # Возвращаем результат

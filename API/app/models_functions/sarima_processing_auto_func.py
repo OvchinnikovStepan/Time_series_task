@@ -1,7 +1,6 @@
 from pmdarima import auto_arima
 import pandas as pd
 import json
-import re
 from .make_prediction_dataframe_func import make_prediction_dataframe
 
 def sarima_processing_auto(params):
@@ -11,11 +10,9 @@ def sarima_processing_auto(params):
     """
 
     df_train = pd.read_json(params["df_train"], orient='table')
-    df_test = pd.read_json(params["df_test"], orient='table')
 
-    hyperparams=json.loads(params["params"])
-
-    season = hyperparams.get("S", 0)
+    hyper_params = json.loads(params["hyper_params"])
+    season=hyper_params.get("S",0)
 
     model = auto_arima(
         df_train,
@@ -25,7 +22,7 @@ def sarima_processing_auto(params):
         suppress_warnings=True
     )
     
-    forecast_steps = len(df_test)+params["duration"]
+    forecast_steps = params["horizon"]
     predictions = model.predict(n_periods=forecast_steps)
     
     model_params = {

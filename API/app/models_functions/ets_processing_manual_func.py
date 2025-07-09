@@ -2,6 +2,8 @@ from statsmodels.tsa.exponential_smoothing.ets import ETSModel
 import pandas as pd
 import json
 from .make_prediction_dataframe_func import make_prediction_dataframe
+
+
 def ets_processing_manual(params):
     """
     - params: словарь параметров модели:
@@ -14,8 +16,6 @@ def ets_processing_manual(params):
     df_train = pd.read_json(params["df_train"], orient='table')
     y = df_train["sensor"].values
 
-    df_test = pd.read_json(params["df_test"], orient='table')
-
     hyper_params = json.loads(params["params"])
     model = ETSModel(
         y,
@@ -26,7 +26,7 @@ def ets_processing_manual(params):
         damped_trend=hyper_params.get("damped_trend", False)
     ).fit()
     
-    forecast_steps = len(df_test)+params["duration"]
+    forecast_steps = params["horizon"]
     predictions = model.forecast(steps=forecast_steps)
     
     model_params = {

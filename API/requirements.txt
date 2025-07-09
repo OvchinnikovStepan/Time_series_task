@@ -8,3 +8,4 @@ requests
 fastapi
 httpx
 uvicorn
+scikit-learn

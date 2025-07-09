@@ -3,9 +3,6 @@ import pandas as pd
 from itertools import product
 from .make_prediction_dataframe_func import make_prediction_dataframe
 import json
-import logging
-
-logging.getLogger('scipy').setLevel(logging.WARNING)
 
 
 def ets_processing_auto(params):
@@ -15,17 +12,16 @@ def ets_processing_auto(params):
     """
     df_train = pd.read_json(params["df_train"], orient='table')
     y = df_train["sensor"].values
-    df_test = pd.read_json(params["df_test"], orient='table')
 
     error_types = ['add', 'mul']
     trend_types = [None, 'add', 'mul']
     season_types = [None, 'add', 'mul']
     damped_options = [False, True]
 
-
-    hyperparams=json.loads(params["params"])
+    hyperparams=json.loads(params["hyper_params"])
 
     seasonal_periods = hyperparams.get("seasonal_periods", None)
+
 
     best_aic = float('inf')
     best_model = None
@@ -55,7 +51,7 @@ def ets_processing_auto(params):
             print(f"ОШИБКА В ТРАЙ {e}")
 
 
-    forecast_steps = len(df_test) + params["duration"]
+    forecast_steps = params["horizon"]
     predictions = best_model.forecast(forecast_steps)
 
     model_params = {
