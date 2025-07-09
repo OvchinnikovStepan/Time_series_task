@@ -16,7 +16,7 @@ def ets_processing_manual(params):
     df_train = pd.read_json(params["df_train"], orient='table')
     y = df_train["sensor"].values
 
-    hyper_params = json.loads(params["params"])
+    hyper_params = json.loads(params["hyper_params"])
     model = ETSModel(
         y,
         error=hyper_params.get("error_type", "add"),

@@ -21,7 +21,7 @@ def prophet_processing_manual(params):
         'y': df_train["sensor"].values
     })
     
-    hyper_params = json.loads(params["params"])
+    hyper_params = json.loads(params["hyper_params"])
 
     model = Prophet(
         growth="linear",
