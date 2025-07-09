@@ -6,6 +6,7 @@ from dashboard.data_processing.select_time_interval import start_date, end_date,
 from dashboard.visualization.plot_interactive_with_selection import plot_interactive_with_selection
 from API.app.request_functions.create_model_payload_func import create_model_payload
 from API.app.request_functions.model_request_func import get_prediction
+from dashboard.utils.data_limiting import limit_data_to_last_points, get_default_time_range
 from typing import Optional, List
 
 def render_data_overview(df: pd.DataFrame, outlier_percentage: float) -> None:
@@ -137,7 +138,25 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
     Панель управления прогнозированием: выбор интервала, фильтрация, целевой признак, модель, запуск
     """
     st.markdown("## Прогнозирование")
-    st.markdown("#### Область прогнозирования")
+    
+    # Информация о текущем режиме отображения
+    original_df = st.session_state.get('original_df', df)
+    if original_df is not None and len(original_df) > 500:
+        if st.session_state.get('is_limited_view', False):
+            st.info(f"Отображаются последние 500 из {len(original_df)} записей. Используйте фильтр для просмотра других периодов.")
+            if st.button("Отобразить все записи", key="show_all_data"):
+                st.session_state['filtered_df'] = original_df
+                st.session_state['is_limited_view'] = False
+                st.rerun()
+        else:
+            st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется использовать ограниченный вид.")
+            if st.button("Отобразить последние 500 записей", key="show_limited_data"):
+                limited_df = limit_data_to_last_points(original_df, 500)
+                st.session_state['filtered_df'] = limited_df
+                st.session_state['is_limited_view'] = True
+                st.rerun()
+    
+    st.markdown("#### Рассматриваемый временной промежуток")
     if 'reset_counter' not in st.session_state:
         st.session_state['reset_counter'] = 0
     context = f"display_panel_{st.session_state['reset_counter']}"
@@ -164,7 +183,12 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
             st.rerun()
     with button_cols[1]:
         if st.button("Сбросить фильтр"):
-            st.session_state['filtered_df'] = df
+            # Возвращаемся к ограниченному виду (последние 500 точек)
+            if st.session_state.get('is_limited_view', False) and st.session_state.get('original_df') is not None:
+                limited_df = limit_data_to_last_points(st.session_state['original_df'], 500)
+                st.session_state['filtered_df'] = limited_df
+            else:
+                st.session_state['filtered_df'] = df
             st.session_state['selected_sensors'] = df.columns.tolist()
             st.session_state['sensor_editor_temp'] = df.columns.tolist()
             st.session_state['reset_counter'] = st.session_state.get('reset_counter', 0) + 1
@@ -303,9 +327,13 @@ def render_forecasting_page(df: pd.DataFrame, outlier_percentage: float) -> None
         current_df_hash = hash(pd.util.hash_pandas_object(df, index=True).sum())
         if st.session_state.get('last_df_hash') != current_df_hash:
             st.session_state.clear()
-            st.session_state['filtered_df'] = df
+            # При загрузке нового файла ограничиваем данные последними 500 точками
+            limited_df = limit_data_to_last_points(df, 500)
+            st.session_state['filtered_df'] = limited_df
             st.session_state['selected_sensors'] = df.columns.tolist()
             st.session_state['sensor_editor_temp'] = df.columns.tolist()
             st.session_state['target_sensor'] = df.columns[0]
             st.session_state['last_df_hash'] = current_df_hash
+            st.session_state['original_df'] = df  # Сохраняем оригинальный DataFrame
+            st.session_state['is_limited_view'] = True  # Флаг, что отображается ограниченный вид
     render_forecasting_main_panel(df) 

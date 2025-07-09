@@ -8,6 +8,7 @@ from dashboard.visualization.show_pairplot import show_pairplot
 from dashboard.data_processing.forecasting import forecasting
 from dashboard.visualization.show_hist import show_hist
 from dashboard.visualization.show_autocorrelation import show_autocorrelation
+from dashboard.utils.data_limiting import limit_data_to_last_points
 from typing import Optional, List, Tuple
 
 def render_data_overview(df: pd.DataFrame, outlier_percentage: float) -> None:
@@ -47,7 +48,12 @@ def handle_filter_buttons(df: pd.DataFrame) -> None:
             st.rerun()
     with button_cols[1]:
         if st.button("Сбросить фильтр", key="reset_filter_analysis"):
-            st.session_state['filtered_df'] = df
+            # Возвращаемся к ограниченному виду (последние 500 точек)
+            if st.session_state.get('is_limited_view_analysis', False) and st.session_state.get('original_df_analysis') is not None:
+                limited_df = limit_data_to_last_points(st.session_state['original_df_analysis'], 500)
+                st.session_state['filtered_df'] = limited_df
+            else:
+                st.session_state['filtered_df'] = df
             st.session_state['selected_sensors'] = df.columns.tolist()
             st.session_state['sensor_editor_temp'] = df.columns.tolist()
             st.rerun()
@@ -105,29 +111,30 @@ def render_sensor_statistics_panel(df: pd.DataFrame, filtered_df: pd.DataFrame) 
         st.info("Нет признаков для анализа.")
         return
     selected_feature = st.selectbox("Выберите признак для подробной информации о нём", features, index=0)
-    mean, median, std, minimal, maximum = info_about_feature(filtered_df, selected_feature)
-    col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
-    with col1:
-        st.subheader("Среднее")
-        st.write(f"{mean:.3f}")
-    with col2:
-        st.subheader("СКО")
-        st.write(f"{std:.3f}")
-    with col3:
-        st.subheader("Медиана")
-        st.write(f"{median:.3f}")
-    with col4:
-        st.subheader("Мин. знач.")
-        st.write(f"{minimal:.3f}")
-    with col5:
-        st.subheader("Макс. знач.")
-        st.write(f"{maximum:.3f}")
-    forecasting(df, column=selected_feature)
-    col_hist, col_autocorr = st.columns(2)
-    with col_hist:
-        show_hist(df, selected_feature, bins=100)
-    with col_autocorr:
-        show_autocorrelation(df, selected_feature)
+    if selected_feature:
+        mean, median, std, minimal, maximum = info_about_feature(filtered_df, selected_feature)
+        col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
+        with col1:
+            st.subheader("Среднее")
+            st.write(f"{mean:.3f}")
+        with col2:
+            st.subheader("СКО")
+            st.write(f"{std:.3f}")
+        with col3:
+            st.subheader("Медиана")
+            st.write(f"{median:.3f}")
+        with col4:
+            st.subheader("Мин. знач.")
+            st.write(f"{minimal:.3f}")
+        with col5:
+            st.subheader("Макс. знач.")
+            st.write(f"{maximum:.3f}")
+        forecasting(df, column=selected_feature)
+        col_hist, col_autocorr = st.columns(2)
+        with col_hist:
+            show_hist(df, selected_feature, bins=100)
+        with col_autocorr:
+            show_autocorrelation(df, selected_feature)
 
 def render_analysis_panels(df: pd.DataFrame, filtered_df: pd.DataFrame) -> None:
     """
@@ -147,16 +154,47 @@ def render_analysis_panels(df: pd.DataFrame, filtered_df: pd.DataFrame) -> None:
     elif st.session_state['active_panel'] == "sensor_statistics":
         render_sensor_statistics_panel(df, filtered_df)
 
+
+
 def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
     """
     Рендерит страницу "Анализ данных"
     """
     st.set_page_config(page_title="Анализ данных", layout="wide")
     render_data_overview(df, outlier_percentage)
+    
+    # Инициализация данных при загрузке нового файла
     if df is not None and not df.empty:
-        if 'filtered_df' not in st.session_state:
-            st.session_state['filtered_df'] = df
+        current_df_hash = hash(pd.util.hash_pandas_object(df, index=True).sum())
+        if st.session_state.get('last_df_hash_analysis') != current_df_hash:
+            # При загрузке нового файла ограничиваем данные последними 500 точками
+            limited_df = limit_data_to_last_points(df, 500)
+            st.session_state['filtered_df'] = limited_df
+            st.session_state['selected_sensors'] = df.columns.tolist()
+            st.session_state['sensor_editor_temp'] = df.columns.tolist()
+            st.session_state['last_df_hash_analysis'] = current_df_hash
+            st.session_state['original_df_analysis'] = df  # Сохраняем оригинальный DataFrame
+            st.session_state['is_limited_view_analysis'] = True  # Флаг, что отображается ограниченный вид
+        
         filtered_df = st.session_state['filtered_df']
+        
+        # Информация о текущем режиме отображения
+        original_df = st.session_state.get('original_df_analysis', df)
+        if original_df is not None and len(original_df) > 500:
+            if st.session_state.get('is_limited_view_analysis', False):
+                st.info(f"Отображаются последние 500 из {len(original_df)} записей. Используйте фильтр для просмотра других периодов.")
+                if st.button("Отобразить все записи", key="show_all_data_analysis"):
+                    st.session_state['filtered_df'] = original_df
+                    st.session_state['is_limited_view_analysis'] = False
+                    st.rerun()
+            else:
+                st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется использовать ограниченный вид.")
+                if st.button("Отобразить последние 500 записей", key="show_limited_data_analysis"):
+                    limited_df = limit_data_to_last_points(original_df, 500)
+                    st.session_state['filtered_df'] = limited_df
+                    st.session_state['is_limited_view_analysis'] = True
+                    st.rerun()
+        
         handle_filter_buttons(df)
         selected_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
         render_interactive_plot(filtered_df, selected_sensors)
