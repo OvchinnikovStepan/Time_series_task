@@ -1,5 +1,6 @@
 from sklearn.metrics import r2_score, mean_absolute_error, mean_absolute_percentage_error,mean_squared_error
 
+
 def calculate_metrics(real_data,predicted_data):
     length_real = len(real_data)
     length_predict = len(predicted_data)

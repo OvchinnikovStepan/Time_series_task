@@ -15,9 +15,8 @@ def sarima_processing_manual(params):
         - Q - порядок сезонного скользящего среднего
     """
     df_train = pd.read_json(params["df_train"], orient='table')
-    df_test = pd.read_json(params["df_test"], orient='table')
 
-    hyper_params = json.loads(params["params"])
+    hyper_params = json.loads(params["hyper_params"])
     if  hyper_params.get("S", False):
         model = SARIMAX(
             df_train,
@@ -30,11 +29,11 @@ def sarima_processing_manual(params):
             order=(hyper_params["p"], hyper_params["d"], hyper_params["q"]),
         ).fit(disp=-1)
 
-    forecast_steps = len(df_test)+params["duration"]
+    forecast_steps = params["horizon"]
     predictions = pd.DataFrame(model.get_forecast(steps=forecast_steps).predicted_mean).rename(columns={'predicted_mean':"predictions"})
     print("ПРЕДСКАЗАНИЯ",predictions["predictions"])
     model_params = {
-        'hyperparams':hyper_params,
+        'hyper_params':hyper_params,
         'params': model.params
     }
     
