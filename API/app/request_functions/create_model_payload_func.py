@@ -1,6 +1,5 @@
 import pandas as pd
 import json
-from typing import Optional
 
 
 #Функция для создания payload для обращения к API моделей предсказания

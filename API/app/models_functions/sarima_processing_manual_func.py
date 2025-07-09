@@ -33,7 +33,7 @@ def sarima_processing_manual(params):
     predictions = pd.DataFrame(model.get_forecast(steps=forecast_steps).predicted_mean).rename(columns={'predicted_mean':"predictions"})
     print("ПРЕДСКАЗАНИЯ",predictions["predictions"])
     model_params = {
-        'hyperparams':hyper_params,
+        'hyper_params':hyper_params,
         'params': model.params
     }
     

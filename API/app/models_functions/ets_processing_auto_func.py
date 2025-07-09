@@ -3,9 +3,6 @@ import pandas as pd
 from itertools import product
 from .make_prediction_dataframe_func import make_prediction_dataframe
 import json
-import logging
-
-logging.getLogger('scipy').setLevel(logging.WARNING)
 
 
 def ets_processing_auto(params):

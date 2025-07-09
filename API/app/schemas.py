@@ -1,6 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
-
 
 class ModelRequest(BaseModel):
     auto_params: bool

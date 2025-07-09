@@ -2,9 +2,9 @@ from fastapi import FastAPI, Path
 import pandas as pd
 import os
 import json
-from .models_functions.routing_func import routing_func
-from .metrics_functions.metrics_func import calculate_metrics
-from API.app.schemas import ModelRequest, MetricsRequest
+from models_functions.routing_func import routing_func
+from metrics_functions.metrics_func import calculate_metrics
+from schemas import ModelRequest, MetricsRequest
 
 app = FastAPI()
 
@@ -55,7 +55,7 @@ async def process_data(request: MetricsRequest):
 @app.get("/api/models")
 async def process_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(current_dir, '..', 'config.json')
+    config_path = os.path.join(current_dir, '.', 'config.json')
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
