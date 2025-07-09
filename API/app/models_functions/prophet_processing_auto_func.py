@@ -3,7 +3,7 @@ from sklearn.metrics import mean_squared_error
 import pandas as pd
 import numpy as np
 from itertools import product
-from .make_prediction_dataframe_func import make_prediction_dataframe
+from API.app.models_functions.make_prediction_dataframe_func import make_prediction_dataframe
 import json
 def prophet_processing_auto(params):
 
