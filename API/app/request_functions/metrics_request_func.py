@@ -1,4 +1,5 @@
 import httpx
+
 from ..schemas import MetricsRequest
 
 

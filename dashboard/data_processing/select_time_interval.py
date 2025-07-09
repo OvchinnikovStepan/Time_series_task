@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from dashboard.validate_data import validate_data
+from dashboard.utils.validate_data import validate_data
 
 def start_date(df, context="panel"):
     if validate_data(df):

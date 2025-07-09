@@ -6,7 +6,6 @@ from .prophet_processing_manual_func import prophet_processing_manual
 from .prophet_processing_auto_func import prophet_processing_auto
 from ..schemas import ModelRequest
 
-
 routing_map={
     "sarima":{
         True: sarima_processing_auto,

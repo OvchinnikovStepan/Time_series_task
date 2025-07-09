@@ -11,7 +11,7 @@ def sarima_processing_auto(params):
 
     df_train = pd.read_json(params["df_train"], orient='table')
 
-    hyper_params = json.loads(params["params"])
+    hyper_params = json.loads(params["hyper_params"])
     season=hyper_params.get("S",0)
 
     model = auto_arima(
