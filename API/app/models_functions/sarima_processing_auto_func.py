@@ -1,7 +1,7 @@
 from pmdarima import auto_arima
 import pandas as pd
 import json
-from .make_prediction_dataframe_func import make_prediction_dataframe
+from API.app.models_functions.make_prediction_dataframe_func import make_prediction_dataframe
 
 def sarima_processing_auto(params):
     """

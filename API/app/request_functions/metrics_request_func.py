@@ -1,6 +1,6 @@
 import httpx
 
-from ..schemas import MetricsRequest
+from API.app.schemas import MetricsRequest
 
 
 async def get_metrics(url, payload: MetricsRequest) -> httpx.Response:

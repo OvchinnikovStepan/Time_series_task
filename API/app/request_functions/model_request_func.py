@@ -1,5 +1,5 @@
 import httpx
-from schemas import ModelRequest
+from API.app.schemas import ModelRequest
 
 
 #Функция получения предсказания от API
