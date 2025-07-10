@@ -132,6 +132,10 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
                     st.session_state.training_points = {}
                     st.session_state.training_sensors = []
                     st.session_state.training_triggered = False
+                    # Очищаем результаты прогнозирования
+                    for key in ['forecast_result', 'metrics_result', 'df_test', 'duration']:
+                        if key in st.session_state:
+                            del st.session_state[key]
                     st.session_state.plot_key += 1
                     st.rerun()
             with col2:

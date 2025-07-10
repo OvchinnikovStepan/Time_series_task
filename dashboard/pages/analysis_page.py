@@ -10,6 +10,7 @@ from dashboard.visualization.show_hist import show_hist
 from dashboard.visualization.show_autocorrelation import show_autocorrelation
 from dashboard.utils.data_limiting import limit_data_to_last_points
 from typing import Optional, List, Tuple
+from pandas.util import hash_pandas_object
 
 def render_data_overview(df: pd.DataFrame, outlier_percentage: float) -> None:
     """
@@ -161,11 +162,15 @@ def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
     Рендерит страницу "Анализ данных"
     """
     st.set_page_config(page_title="Анализ данных", layout="wide")
+    # Не отображаем информацию о датасете, если df is None
+    if df is None:
+        st.session_state.clear()
+        return
     render_data_overview(df, outlier_percentage)
     
     # Инициализация данных при загрузке нового файла
     if df is not None and not df.empty:
-        current_df_hash = hash(pd.util.hash_pandas_object(df, index=True).sum())
+        current_df_hash = hash_pandas_object(df, index=True).sum()
         if st.session_state.get('last_df_hash_analysis') != current_df_hash:
             # При загрузке нового файла ограничиваем данные последними 500 точками
             limited_df = limit_data_to_last_points(df, 500)
@@ -175,31 +180,24 @@ def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
             st.session_state['last_df_hash_analysis'] = current_df_hash
             st.session_state['original_df_analysis'] = df  # Сохраняем оригинальный DataFrame
             st.session_state['is_limited_view_analysis'] = True  # Флаг, что отображается ограниченный вид
-        
-        filtered_df = st.session_state['filtered_df']
-        
-        # Информация о текущем режиме отображения
-        original_df = st.session_state.get('original_df_analysis', df)
-        if original_df is not None and len(original_df) > 500:
-            if st.session_state.get('is_limited_view_analysis', False):
-                st.info(f"Отображаются последние 500 из {len(original_df)} записей. Используйте фильтр для просмотра других периодов.")
-                if st.button("Отобразить все записи", key="show_all_data_analysis"):
-                    st.session_state['filtered_df'] = original_df
-                    st.session_state['is_limited_view_analysis'] = False
-                    st.rerun()
-            else:
-                st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется использовать ограниченный вид.")
-                if st.button("Отобразить последние 500 записей", key="show_limited_data_analysis"):
-                    limited_df = limit_data_to_last_points(original_df, 500)
-                    st.session_state['filtered_df'] = limited_df
-                    st.session_state['is_limited_view_analysis'] = True
-                    st.rerun()
-        
-        handle_filter_buttons(df)
-        selected_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
-        render_interactive_plot(filtered_df, selected_sensors)
-    else:
-        st.markdown("""<div class=\"block\" style=\"height: 420px;\"></div>""", unsafe_allow_html=True)
-        filtered_df = pd.DataFrame()
+    
+    filtered_df = st.session_state['filtered_df']
+    
+    # Информация о текущем режиме отображения
+    original_df = st.session_state.get('original_df_analysis', df)
+    if original_df is not None and len(original_df) > 500:
+        if st.session_state.get('is_limited_view_analysis', False):
+            st.info(f"Отображаются последние 500 из {len(original_df)} записей. Используйте фильтр для просмотра других периодов.")
+            if st.button("Отобразить все записи", key="show_all_data_analysis"):
+                st.session_state['filtered_df'] = original_df
+                st.session_state['is_limited_view_analysis'] = False
+                st.rerun()
+        else:
+            st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется использовать ограниченный вид.")
+            if st.button("Отобразить последние 500 записей", key="show_limited_data_analysis"):
+                limited_df = limit_data_to_last_points(original_df, 500)
+                st.session_state['filtered_df'] = limited_df
+                st.session_state['is_limited_view_analysis'] = True
+                st.rerun()
     render_parameter_and_preview_panel(df, filtered_df)
-    render_analysis_panels(df, filtered_df) 
+    # Вся аналитика вызывается внутри render_sensor_statistics_panel и других панелей 
