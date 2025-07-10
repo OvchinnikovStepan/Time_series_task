@@ -20,7 +20,7 @@
 
 **Команда запуска:**
 ```bash
-uvicorn API.app.main:app --reload
+uvicorn API.app.main:app --host 0.0.0.0 --port 8000 --reload
 ``` 
 ---
 ## Docker
