@@ -170,7 +170,7 @@ def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
     
     # Инициализация данных при загрузке нового файла
     if df is not None and not df.empty:
-        current_df_hash = hash_pandas_object(df, index=True).sum()
+        current_df_hash = hash(str(df.shape) + str(df.columns.tolist()) + str(df.index[-10:].tolist()) if len(df) > 10 else str(df.index.tolist()))
         if st.session_state.get('last_df_hash_analysis') != current_df_hash:
             # При загрузке нового файла ограничиваем данные последними 500 точками
             limited_df = limit_data_to_last_points(df, 500)
@@ -182,7 +182,8 @@ def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
             st.session_state['is_limited_view_analysis'] = True  # Флаг, что отображается ограниченный вид
     
     filtered_df = st.session_state['filtered_df']
-    
+    selected_sensors = st.session_state.get('selected_sensors', filtered_df.columns.tolist())
+    render_interactive_plot(filtered_df, selected_sensors)
     # Информация о текущем режиме отображения
     original_df = st.session_state.get('original_df_analysis', df)
     if original_df is not None and len(original_df) > 500:
@@ -200,4 +201,4 @@ def render_analysis_page(df: pd.DataFrame, outlier_percentage: float) -> None:
                 st.session_state['is_limited_view_analysis'] = True
                 st.rerun()
     render_parameter_and_preview_panel(df, filtered_df)
-    # Вся аналитика вызывается внутри render_sensor_statistics_panel и других панелей 
+    render_analysis_panels(df, filtered_df)
