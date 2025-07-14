@@ -1,4 +1,143 @@
-{
-  "url": "http://localhost:8000/api/",
-  "models": ["sarima", "ets", "prophet"]
-}
+{"models": {
+  "sarima":
+  {
+    "can_be_auto": true,
+    "hyper_params":
+    {
+      "S": {
+        "dtype": "int",
+        "description": "сезонность",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "p": {
+        "dtype": "int",
+        "description": "порядок авторегрессии",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "d": {
+        "dtype": "int",
+        "description": "порядок дифферненцирования ряда",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "q": {
+        "dtype": "int",
+        "description": "порядок скользящего среднего",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "P": {
+        "dtype": "int",
+        "description": "порядок сезонной авторегрессии",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "D": {
+        "dtype": "int",
+        "description": "порядок сезонного дифференциорования",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      },
+      "Q": {
+        "dtype": "int",
+        "description": "порядок сезонного скользящего среднего",
+        "default_value": 0,
+        "min_value": 0,
+        "max_value": null
+      }
+    }
+  },
+
+  "ets":
+  {
+    "can_be_auto": true,
+    "hyper_params":
+    {
+      "error_type": {
+        "dtype": "str",
+        "description": "тип ошибки",
+        "default_value": "add",
+        "values": ["add", "mul"]
+      },
+      "trend_type": {
+        "dtype": "str",
+        "description": "тип тренда",
+        "default_value": null,
+        "values": ["add", "mul", null]
+      },
+      "season_type": {
+        "dtype": "str",
+        "description": "тип сезона",
+        "default_value": null,
+        "values": ["add", "mul", null]
+      },
+      "seasonal_periods": {
+        "dtype": "int",
+        "description": "порядок скользящего среднего",
+        "default_value": null,
+        "min_value": 0,
+        "max_value": null
+      },
+      "damped_trend": {
+        "dtype": "bool",
+        "description": "порядок сезонной авторегрессии",
+        "default_value": false,
+        "values": [false, true]
+      }
+    }
+  },
+
+  "prophet":
+  {
+    "can_be_auto": true,
+    "hyper_params":
+    {
+        "seasonality_mode": {
+        "dtype": "str",
+        "description": "режим сезонности",
+        "default_value": "additive",
+        "values": ["additive", "multiplicative"]
+      },
+      "yearly_seasonality": {
+        "dtype": "bool",
+        "description": "годовая сезонность",
+        "default_value": false,
+        "values": [false, true]
+      },
+      "weekly_seasonality": {
+        "dtype": "bool",
+        "description": "недельная сезонность",
+        "default_value": false,
+        "values": [false, true]
+      },
+      "daily_seasonality": {
+        "dtype": "bool",
+        "description": "дневная сезонность",
+        "default_value": false,
+        "values": [false, true]
+      },
+      "seasonality_prior_scale": {
+        "dtype": "float",
+        "description": "масштаб сезонности",
+        "default_value": 0.1,
+        "min_value": 0,
+        "max_value": null
+      },
+      "changepoint_prior_scale": {
+        "dtype": "float",
+        "description": "чувствительность к изменениям тренда",
+        "default_value": 0.1,
+        "min_value": 0,
+        "max_value": null
+      }
+    }
+  }
+}}

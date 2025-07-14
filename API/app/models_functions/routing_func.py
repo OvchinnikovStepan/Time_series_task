@@ -1,10 +1,10 @@
-from .sarima_processing_manual_func import sarima_processing_manual
-from .sarima_processing_auto_func import sarima_processing_auto
-from .ets_processing_manual_func import ets_processing_manual
-from .ets_processing_auto_func import ets_processing_auto
-from .prophet_processing_manual_func import prophet_processing_manual
-from .prophet_processing_auto_func import prophet_processing_auto
-from ..schemas import ModelRequest
+from API.app.models_functions.sarima_processing_manual_func import sarima_processing_manual
+from API.app.models_functions.sarima_processing_auto_func import sarima_processing_auto
+from API.app.models_functions.ets_processing_manual_func import ets_processing_manual
+from API.app.models_functions.ets_processing_auto_func import ets_processing_auto
+from API.app.models_functions.prophet_processing_manual_func import prophet_processing_manual
+from API.app.models_functions.prophet_processing_auto_func import prophet_processing_auto
+from API.app.schemas import ModelRequest
 
 routing_map={
     "sarima":{

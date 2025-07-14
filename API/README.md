@@ -20,4 +20,15 @@
 
 **Команда запуска:**
 ```bash
-uvicorn API.app.main:app --reload
+uvicorn API.app.main:app --host 0.0.0.0 --port 8000 --reload
+``` 
+---
+## Docker
+**Для создания образа, в папке API прописать:**
+```bash
+docker build -t model-app:1.0 . 
+```
+**Для запуска, там же прописать:**
+```bash
+docker run -p8000:8000 model-app:1.0  
+``` 

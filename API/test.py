@@ -74,16 +74,16 @@ async def main():
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(current_dir, '.', 'config.json')
+    config_path = os.path.join(current_dir,'app', 'config.json')
 
 
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
-        url = config['url']
+        url = "http://localhost:8000/api/"
 
         payload = create_model_payload(True, 5, df_train, params)
 
-        response = await get_prediction(url, payload, "ets")
+        response = await get_prediction(url, payload, "sarima")
 
         print("Status Code:", response.status_code)
         print("Response JSON:", response.json())
