@@ -1,6 +1,5 @@
 import httpx
-from API.app.schemas import ModelRequest
-
+from ..schemas import ModelRequest
 
 #Функция получения предсказания от API
 async def get_prediction(url, payload: ModelRequest, model_type: str) -> httpx.Response:
