@@ -4,11 +4,11 @@ import asyncio
 from dashboard.data_processing.info_about_dataframe import info_about_dataframe
 from dashboard.data_processing.select_time_interval import start_date, end_date, filter_dataframe
 from dashboard.visualization.plot_interactive_with_selection import plot_interactive_with_selection
-from API.app.request_functions.create_model_payload_func import create_model_payload
-from API.app.request_functions.model_request_func import get_prediction
-from API.app.request_functions.get_models_func import get_models
-from API.app.request_functions.metrics_request_func import get_metrics
-from API.app.request_functions.create_metrics_payload_func import create_metrics_payload
+from dashboard.request_functions.create_model_payload_func import create_model_payload
+from dashboard.request_functions.model_request_func import get_prediction
+from dashboard.request_functions.get_models_func import get_models
+from dashboard.request_functions.metrics_request_func import get_metrics
+from dashboard.request_functions.create_metrics_payload_func import create_metrics_payload
 from dashboard.utils.data_limiting import limit_data_to_last_points, get_default_time_range
 from typing import Optional, List
 import json
