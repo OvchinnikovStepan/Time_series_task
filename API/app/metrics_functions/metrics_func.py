@@ -14,7 +14,9 @@ def calculate_metrics(real_data,predicted_data):
         real_data_sh = real_data
         predicted_data_sh = predicted_data
 
-    return {"R^2":r2_score(real_data_sh, predicted_data_sh),
+    #
+    return {
+            "R^2": r2_score(real_data_sh, predicted_data_sh),
             "MAE":mean_absolute_error(real_data_sh, predicted_data_sh),
             "MAPE":mean_absolute_percentage_error(real_data_sh, predicted_data_sh),
             "MSE":mean_squared_error(real_data_sh, predicted_data_sh)

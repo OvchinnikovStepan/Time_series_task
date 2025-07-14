@@ -19,7 +19,8 @@ def sarima_processing_auto(params):
         m=season,
         trace=True,
         stepwise=True,
-        suppress_warnings=True
+        suppress_warnings=True,
+        seasonal=True
     )
     
     forecast_steps = params["horizon"]
