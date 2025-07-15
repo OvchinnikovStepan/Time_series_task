@@ -16,6 +16,8 @@ import os
 from io import StringIO
 import numpy as np
 
+from ..schemas import ModelRequest, MetricsRequest
+
 
 def render_forecast_results():
     """
@@ -411,7 +413,6 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
                             st.error("Ошибка: df_train должен быть DataFrame")
                             return
                         try:
-                            from API.app.schemas import ModelRequest
                             model_request = ModelRequest(**payload)
                             
                             # Показываем индикатор загрузки
@@ -434,7 +435,7 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
                                         df_predict = df_predict.replace([np.inf, -np.inf, np.nan], 0)
                                         df_test = df_test.replace([np.inf, -np.inf, np.nan], 0)
                                         metrics_payload = create_metrics_payload(df_predict=df_predict, df_test=df_test)
-                                        from API.app.schemas import MetricsRequest
+
                                         metrics_request = MetricsRequest(
                                             df_predict=str(metrics_payload["df_predict"]),
                                             df_test=str(metrics_payload["df_test"])

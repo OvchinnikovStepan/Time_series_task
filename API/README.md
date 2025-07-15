@@ -26,7 +26,7 @@ uvicorn API.app.main:app --host 0.0.0.0 --port 8000 --reload
 ## Docker
 **Для создания образа, в папке API прописать:**
 ```bash
-docker build -t model-app:1.0 . 
+docker build -f Dockerfile_API -t model-app:1.0 . 
 ```
 **Для запуска, там же прописать:**
 ```bash
