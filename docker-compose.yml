@@ -1,0 +1,30 @@
+services:
+  time_series_api_app:
+    container_name: time_series_api
+    build:
+      context: ./API/
+      dockerfile: Dockerfile_API
+    ports:
+      - "${API_PORT:-8000}:8000"  # Внешний порт : внутренний порт (всегда 8000)
+    env_file:
+      - .env
+    volumes:
+      - .:/API/app
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PORT=8000  # Фиксированный порт внутри контейнера
+
+  time_series_app:
+    container_name: time_series_dashboard
+    build:
+      context: .
+      dockerfile: Dockerfile_streamlit
+    ports:
+      - "${DASHBOARD_PORT:-8501}:${DASHBOARD_PORT:-8501}"
+    env_file:
+      - .env
+    volumes:
+      - .:/dashboard
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PORT=${DASHBOARD_PORT:-8501}
