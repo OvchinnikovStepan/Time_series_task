@@ -12,6 +12,7 @@ from dashboard.request_functions.create_metrics_payload_func import create_metri
 from dashboard.utils.data_limiting import limit_data_to_last_points, get_default_time_range
 from typing import Optional, List
 import json
+from dashboard.data_processing.edit_dataset_by_quantiles import edit_dataset_by_quantiles
 import os
 from io import StringIO
 import numpy as np
@@ -197,98 +198,177 @@ def get_api_url():
 
 def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.DataFrame]) -> None:
     """
-    Панель управления прогнозированием: выбор интервала, фильтрация, целевой признак, модель, запуск
+    Панель управления прогнозированием.
+    Здесь находятся кнопки изменения исходного ряда, кнопка возврата исходного ряда,
+    выбор временного интервала, целевого признака и модели, а также запуск прогноза.
     """
     st.markdown("## Прогнозирование")
-    
-    # Информация о текущем режиме отображения
+
+    # Кнопки изменения исходного ряда располагаются сразу под заголовком панели справа от основного контента.
+    btn_cols = st.columns([1, 1])
+    with btn_cols[0]:
+        if st.button("Изменить исходный ряд", key="edit_base_series_btn"):
+            @st.dialog("Изменить исходный ряд")
+            def edit_series_dialog():
+                # Берём текущую рабочую версию данных. Все преобразования применяются к ней.
+                work_df = st.session_state.get('working_df', df)
+
+                numeric_cols = list(work_df.select_dtypes(include="number").columns)
+                if not numeric_cols:
+                    st.error("Нет числовых столбцов для редактирования")
+                    if st.button("Закрыть"):
+                        st.rerun()
+                    return
+
+                # Пользователь выбирает столбцы и параметры преобразования
+                cols = st.multiselect("Столбцы для обработки", options=numeric_cols, default=numeric_cols, key="edit_cols")
+                lower_q = st.slider("Нижний квантиль", 0.0, 1.0, 0.05, 0.01, key="edit_lower_q")
+                upper_q = st.slider("Верхний квантиль", 0.0, 1.0, 0.95, 0.01, key="edit_upper_q")
+                mode_human = st.radio("Режим", ["Обрезать значения по квантилям", "Фильтровать строки по квантилям"], horizontal=True, key="edit_mode")
+                how_human = st.radio("Логика для нескольких столбцов", ["Все столбцы внутри диапазона", "Достаточно одного столбца"], horizontal=True, key="edit_how")
+                inclusive = st.selectbox("Включение границ", ["both", "left", "right", "neither"], index=0, help="both соответствует включению обеих границ", key="edit_inclusive")
+
+                # Подтверждение применения преобразования к рабочему датасету
+                if st.button("Применить", key="apply_series_edit"):
+                    try:
+                        _, mod = edit_dataset_by_quantiles(
+                            work_df,
+                            lower_q=lower_q,
+                            upper_q=upper_q,
+                            cols=cols if cols else numeric_cols,
+                            mode="clip" if mode_human.startswith("Обрезать") else "filter",
+                            how="all" if how_human.startswith("Все") else "any",
+                            inclusive=inclusive,
+                        )
+                        # Сохраняем изменённую версию как рабочую, чтобы графики и фильтры использовали именно её
+                        st.session_state['working_df'] = mod
+                        # Обновляем отображаемую часть согласно текущему режиму показа
+                        if st.session_state.get('is_limited_view', False):
+                            st.session_state['filtered_df'] = limit_data_to_last_points(mod, 500)
+                        else:
+                            st.session_state['filtered_df'] = mod
+                        # Включаем флаг, чтобы показать кнопку возврата исходного ряда
+                        st.session_state['is_series_modified'] = True
+                        st.success("Исходный ряд обновлён. На графике отображается изменённая версия.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Не удалось применить изменения. Подробности: {e}")
+
+                # Закрытие без применения
+                if st.button("Отмена", key="cancel_series_edit"):
+                    st.rerun()
+
+            edit_series_dialog()
+
+    with btn_cols[1]:
+        # Кнопка возврата отображается только после любых изменений исходного ряда
+        if st.session_state.get('is_series_modified', False):
+            if st.button("Вернуть исходный ряд", key="restore_base_series_btn"):
+                base = st.session_state.get('original_df', df)
+                # Восстанавливаем рабочую версию из оригинала
+                st.session_state['working_df'] = base.copy()
+                # Обновляем отображаемую часть в зависимости от выбранного режима показа
+                if st.session_state.get('is_limited_view', False):
+                    st.session_state['filtered_df'] = limit_data_to_last_points(base, 500)
+                else:
+                    st.session_state['filtered_df'] = base
+                # Сбрасываем флаг изменения ряда
+                st.session_state['is_series_modified'] = False
+                st.success("Вернули оригинальный ряд")
+                st.rerun()
+
+    # Информационный блок о текущем режиме показа данных. Логика прежняя.
     original_df = st.session_state.get('original_df', df)
     if original_df is not None and len(original_df) > 500:
         if st.session_state.get('is_limited_view', False):
             st.info(f"Отображаются последние 500 из {len(original_df)} записей. Используйте фильтр для просмотра других периодов.")
             if st.button("Отобразить все записи", key="show_all_data"):
-                st.session_state['filtered_df'] = original_df
+                st.session_state['filtered_df'] = st.session_state.get('working_df', df)
                 st.session_state['is_limited_view'] = False
                 st.rerun()
         else:
-            st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется использовать ограниченный вид.")
+            st.info(f"Отображаются все {len(original_df)} записей. Для лучшей производительности рекомендуется включать ограниченный вид.")
             if st.button("Отобразить последние 500 записей", key="show_limited_data"):
-                limited_df = limit_data_to_last_points(original_df, 500)
+                limited_df = limit_data_to_last_points(st.session_state.get('working_df', df), 500)
                 st.session_state['filtered_df'] = limited_df
                 st.session_state['is_limited_view'] = True
                 st.rerun()
-    
+
     st.markdown("#### Рассматриваемый временной промежуток")
+
+    # Счётчик нужен для независимого состояния виджетов дат при сбросе
     if 'reset_counter' not in st.session_state:
         st.session_state['reset_counter'] = 0
     context = f"display_panel_{st.session_state['reset_counter']}"
-    
-    # Используем отфильтрованный датасет для определения диапазона дат
+
+    # Даты берём из текущего отображаемого DataFrame
     filtered_df = st.session_state.get('filtered_df', df)
-    
+
     start_cols = st.columns(2)
     with start_cols[0]:
         start_datetime = start_date(filtered_df, context=context)
     with start_cols[1]:
         end_datetime = end_date(filtered_df, context=context)
+
+    # Применение и сброс фильтра по времени
     button_cols = st.columns(2)
     with button_cols[0]:
         if st.button("Применить фильтр"):
             if start_datetime is not None and end_datetime is not None:
-                # Применяем фильтр к оригинальному датасету, а не к отфильтрованному
-                filtered_result = filter_dataframe(start_datetime, end_datetime, df)
+                # Фильтруем рабочую версию данных, чтобы учесть внесённые изменения ряда
+                base_for_filter = st.session_state.get('working_df', df)
+                filtered_result = filter_dataframe(start_datetime, end_datetime, base_for_filter)
                 if filtered_result is not None:
                     st.session_state['filtered_df'] = filtered_result
-                    # Если фильтр применен к полному датасету, сбрасываем флаг ограниченного вида
-                    if len(filtered_result) == len(df):
-                        st.session_state['is_limited_view'] = False
-                    else:
-                        st.session_state['is_limited_view'] = False  # Пользователь выбрал конкретный диапазон
+                    st.session_state['is_limited_view'] = False
                 else:
                     st.error("Ошибка при применении фильтра")
                     return
             else:
-                st.session_state['filtered_df'] = df
+                # Если даты не заданы, показываем рабочий датасет целиком
+                st.session_state['filtered_df'] = st.session_state.get('working_df', df)
                 st.session_state['is_limited_view'] = False
+
+            # Актуализируем список выбранных сенсоров под текущий набор колонок
             if 'sensor_editor_temp' in st.session_state:
                 if st.session_state['sensor_editor_temp']:
                     st.session_state['selected_sensors'] = st.session_state['sensor_editor_temp']
                 else:
-                    st.error("Ошибка: Выберите хотя бы один параметр для отображения графика.")
+                    st.error("Выберите хотя бы один параметр для отображения графика")
                     st.session_state['selected_sensors'] = []
             else:
-                st.session_state['selected_sensors'] = df.columns.tolist()
+                st.session_state['selected_sensors'] = st.session_state['filtered_df'].columns.tolist()
             st.rerun()
+
     with button_cols[1]:
         if st.button("Сбросить фильтр"):
-            # Возвращаемся к ограниченному виду (последние 500 точек)
+            # Возвращаемся к рабочему датасету, чтобы сохранить эффект редактирования ряда
+            work = st.session_state.get('working_df', df)
             if st.session_state.get('is_limited_view', False) and st.session_state.get('original_df') is not None:
-                limited_df = limit_data_to_last_points(st.session_state['original_df'], 500)
+                limited_df = limit_data_to_last_points(work, 500)
                 st.session_state['filtered_df'] = limited_df
             else:
-                st.session_state['filtered_df'] = df
-            st.session_state['selected_sensors'] = df.columns.tolist()
-            st.session_state['sensor_editor_temp'] = df.columns.tolist()
+                st.session_state['filtered_df'] = work
+            # Сбрасываем выбор сенсоров к колонкам текущего рабочего датасета
+            st.session_state['selected_sensors'] = work.columns.tolist()
+            st.session_state['sensor_editor_temp'] = work.columns.tolist()
+            # Обнуляем состояние виджетов выбора дат и времени
             st.session_state['reset_counter'] = st.session_state.get('reset_counter', 0) + 1
             old_context = f"display_panel_{st.session_state['reset_counter'] - 1}"
-            keys_to_clear = [
-                f'start_date_{old_context}',
-                f'start_time_{old_context}',
-                f'end_date_{old_context}',
-                f'end_time_{old_context}'
-            ]
-            for key in keys_to_clear:
+            for key in [f'start_date_{old_context}', f'start_time_{old_context}', f'end_date_{old_context}', f'end_time_{old_context}']:
                 if key in st.session_state:
                     del st.session_state[key]
-            # Сброс результатов прогнозирования, метрик и тестовых данных
+            # Чистим ранее рассчитанные результаты прогноза и метрики
             for key in ['forecast_result', 'metrics_result', 'df_test', 'duration']:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
+
     st.markdown("#### Целевые параметры:")
     target_sensor = None
     if df is not None and not df.empty:
-        available_sensors = st.session_state.get('selected_sensors', df.columns.tolist())
+        # Источник доступных сенсоров зависит от текущего отображаемого набора колонок
+        available_sensors = st.session_state.get('selected_sensors', st.session_state.get('filtered_df', df).columns.tolist())
         if training_df is not None and not training_df.empty:
             available_sensors = list(training_df.columns)
         if len(available_sensors) == 0:
@@ -302,14 +382,15 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
             )
     else:
         st.markdown("Нет информации", unsafe_allow_html=True)
+
     show_training_data_dialog(training_df)
+
     st.markdown("#### Выбрать модель")
-    # Получаем список доступных моделей из API
     api_url = get_api_url()
     if not api_url:
-        st.error("❌ Не удалось получить URL API")
+        st.error("Не удалось получить URL API")
         return
-        
+
     available_models = None
     try:
         models_response = asyncio.run(get_models(api_url))
@@ -318,150 +399,143 @@ def render_forecasting_control_panel(df: pd.DataFrame, training_df: Optional[pd.
             available_models = list(models_data.keys()) if models_data else None
     except Exception:
         pass
-    
+
     if not available_models:
-        st.error("❌ Не удалось получить список моделей от API")
+        st.error("Не удалось получить список моделей от API")
         return
-    
-    option = st.selectbox(
-        "Выберите модель",
-        available_models,
-        key="model_select"
-    )
+
+    option = st.selectbox("Выберите модель", available_models, key="model_select")
 
     if st.button("Начать прогнозирование"):
         @st.dialog("Настройка прогноза")
         def forecast_settings_dialog():
+            # Пользователь выбирает способ подбора параметров и горизонт прогнозирования
             auto_params = st.checkbox("Автоподбор параметров", key="auto_params_dialog")
             duration = st.number_input("Количество предсказаний", min_value=1, value=st.session_state.get('duration', 1), step=1, format="%d", key="duration_dialog")
             params = st.session_state.get('params', {})
+
+            # Формы параметров для разных моделей
             if auto_params and option in ["sarima", "ets"]:
                 if option == "sarima":
-                    params['S'] = st.number_input("Сезонность (S)", min_value=1, value=params.get('S', 12), step=1, format="%d", key="seasonality_S")
+                    params['S'] = st.number_input("Сезонность S", min_value=1, value=params.get('S', 12), step=1, format="%d", key="seasonality_S")
                 elif option == "ets":
-                    params['seasonal_periods'] = st.number_input("Сезонность (seasonal_periods)", min_value=1, value=params.get('seasonal_periods', 12), step=1, format="%d", key="seasonality_ets")
+                    params['seasonal_periods'] = st.number_input("Сезонность seasonal_periods", min_value=1, value=params.get('seasonal_periods', 12), step=1, format="%d", key="seasonality_ets")
             if not auto_params:
                 if option == "sarima":
-                    params['S'] = st.number_input("Сезонность (S)", min_value=1, value=params.get('S', 12), step=1, format="%d", key="sarima_S")
-                    params['p'] = st.number_input("Порядок авторегрессии (p)", min_value=0, value=params.get('p', 0), step=1, format="%d", key="sarima_p")
-                    params['d'] = st.number_input("Порядок дифференцирования (d)", min_value=0, value=params.get('d', 0), step=1, format="%d", key="sarima_d")
-                    params['q'] = st.number_input("Порядок скользящего среднего (q)", min_value=0, value=params.get('q', 0), step=1, format="%d", key="sarima_q")
-                    params['P'] = st.number_input("Порядок сезонной авторегрессии (P)", min_value=0, value=params.get('P', 0), step=1, format="%d", key="sarima_P")
-                    params['D'] = st.number_input("Порядок сезонного дифференцирования (D)", min_value=0, value=params.get('D', 0), step=1, format="%d", key="sarima_D")
-                    params['Q'] = st.number_input("Порядок сезонного скользящего среднего (Q)", min_value=0, value=params.get('Q', 0), step=1, format="%d", key="sarima_Q")
+                    params['S'] = st.number_input("Сезонность S", min_value=1, value=params.get('S', 12), step=1, format="%d", key="sarima_S")
+                    params['p'] = st.number_input("Порядок p", min_value=0, value=params.get('p', 0), step=1, format="%d", key="sarima_p")
+                    params['d'] = st.number_input("Порядок d", min_value=0, value=params.get('d', 0), step=1, format="%d", key="sarima_d")
+                    params['q'] = st.number_input("Порядок q", min_value=0, value=params.get('q', 0), step=1, format="%d", key="sarima_q")
+                    params['P'] = st.number_input("Сезонный порядок P", min_value=0, value=params.get('P', 0), step=1, format="%d", key="sarima_P")
+                    params['D'] = st.number_input("Сезонный порядок D", min_value=0, value=params.get('D', 0), step=1, format="%d", key="sarima_D")
+                    params['Q'] = st.number_input("Сезонный порядок Q", min_value=0, value=params.get('Q', 0), step=1, format="%d", key="sarima_Q")
                 elif option == "ets":
                     params['error_type'] = st.selectbox("Тип ошибки", ["add", "mul"], index=["add", "mul"].index(params.get('error_type', 'add')), key="ets_error_type")
                     params['trend_type'] = st.selectbox("Тип тренда", ["None", "add", "mul"], index=["None", "add", "mul"].index(params.get('trend_type', 'None')), key="ets_trend_type")
-                    params['season_type'] = st.selectbox("Тип сезона", ["None", "add", "mul"], index=["None", "add", "mul"].index(params.get('season_type', 'None')), key="ets_season_type")
-                    params['seasonal_periods'] = st.number_input("Сезонность (seasonal_periods)", min_value=1, value=params.get('seasonal_periods', 12), step=1, format="%d", key="ets_seasonal_periods")
-                    params['damped_trend'] = st.selectbox("Дампируется ли тренд", ["True", "False"], index=["True", "False"].index(str(params.get('damped_trend', 'True'))), key="ets_damped_trend") == "True"
+                    params['season_type'] = st.selectbox("Тип сезонности", ["None", "add", "mul"], index=["None", "add", "mul"].index(params.get('season_type', 'None')), key="ets_season_type")
+                    params['seasonal_periods'] = st.number_input("Сезонность seasonal_periods", min_value=1, value=params.get('seasonal_periods', 12), step=1, format="%d", key="ets_seasonal_periods")
+                    params['damped_trend'] = st.selectbox("Демпфирование тренда", ["True", "False"], index=["True", "False"].index(str(params.get('damped_trend', 'True'))), key="ets_damped_trend") == "True"
                 elif option == "prophet":
-                    params['seasonality_mode'] = st.selectbox("Режим моделирования сезонных компонент", ["additive", "multiplicative"], index=["additive", "multiplicative"].index(params.get('seasonality_mode', 'additive')), key="prophet_seasonality_mode")
-                    params['yearly_seasonality'] = st.selectbox("Настройка годовой сезонности", ["True", "False"], index=["True", "False"].index(str(params.get('yearly_seasonality', 'True'))), key="prophet_yearly_seasonality") == "True"
-                    params['weekly_seasonality'] = st.selectbox("Настройка недельной сезонности", ["True", "False"], index=["True", "False"].index(str(params.get('weekly_seasonality', 'True'))), key="prophet_weekly_seasonality") == "True"
-                    params['daily_seasonality'] = st.selectbox("Настройка дневной сезонности", ["True", "False"], index=["True", "False"].index(str(params.get('daily_seasonality', 'True'))), key="prophet_daily_seasonality") == "True"
-                    params['seasonality_prior_scale'] = st.number_input("Выраженность сезонных компонент", value=float(params.get('seasonality_prior_scale', 10.0)), key="prophet_seasonality_prior_scale")
-                    params['changepoint_prior_scale'] = st.number_input("Чувствительность точек излома", value=float(params.get('changepoint_prior_scale', 0.05)), key="prophet_changepoint_prior_scale")
+                    params['seasonality_mode'] = st.selectbox("Режим сезонности", ["additive", "multiplicative"], index=["additive", "multiplicative"].index(params.get('seasonality_mode', 'additive')), key="prophet_seasonality_mode")
+                    params['yearly_seasonality'] = st.selectbox("Годовая сезонность", ["True", "False"], index=["True", "False"].index(str(params.get('yearly_seasonality', 'True'))), key="prophet_yearly_seasonality") == "True"
+                    params['weekly_seasonality'] = st.selectbox("Недельная сезонность", ["True", "False"], index=["True", "False"].index(str(params.get('weekly_seasonality', 'True'))), key="prophet_weekly_seasonality") == "True"
+                    params['daily_seasonality'] = st.selectbox("Дневная сезонность", ["True", "False"], index=["True", "False"].index(str(params.get('daily_seasonality', 'True'))), key="prophet_daily_seasonality") == "True"
+                    params['seasonality_prior_scale'] = st.number_input("Интенсивность сезонности", value=float(params.get('seasonality_prior_scale', 10.0)), key="prophet_seasonality_prior_scale")
+                    params['changepoint_prior_scale'] = st.number_input("Чувствительность к точкам излома", value=float(params.get('changepoint_prior_scale', 0.05)), key="prophet_changepoint_prior_scale")
+
             if st.button("Подтвердить", key="confirm_forecast_dialog"):
                 st.session_state['duration'] = duration
                 st.session_state['params'] = params
-                # Выполнить прогнозирование (логика не меняется)
+
                 if training_df is not None and not training_df.empty and target_sensor:
                     if 'duration' not in st.session_state:
-                        st.error("Ошибка: Сначала выберите количество предсказаний!")
+                        st.error("Сначала задайте количество предсказаний")
                         return
-                    elif auto_params and option in ["sarima", "ets"] and 'params' not in st.session_state:
-                        st.error("Ошибка: Для выбранной модели с автоподбором необходимо указать сезонность!")
+                    if auto_params and option in ["sarima", "ets"] and 'params' not in st.session_state:
+                        st.error("Для выбранной модели с автоподбором необходимо указать сезонность")
                         return
-                    elif not auto_params and 'params' not in st.session_state:
-                        st.error("Ошибка: Сначала выберите параметры модели!")
+                    if not auto_params and 'params' not in st.session_state:
+                        st.error("Сначала укажите параметры модели")
                         return
-                    else:
-                        df_train = training_df[[target_sensor]].copy()
-                        if isinstance(df_train, pd.DataFrame):
-                            df_train = df_train.rename(columns={str(target_sensor): 'sensor'})
-                        if not isinstance(df_train.index, pd.DatetimeIndex):
-                            st.error("Ошибка: Индекс df_train должен быть типа DatetimeIndex")
-                            return
-                        end_training_time = df_train.index.max() if df_train is not None and not df_train.empty else None
-                        df_test = None
-                        if df is not None and not df.empty and end_training_time is not None:
-                            df_test = df[df.index > end_training_time][[target_sensor]]
-                            if isinstance(df_test, pd.DataFrame):
-                                df_test = df_test.rename(columns={str(target_sensor): 'sensor'})
-                                # Берём только duration точек
-                                if len(df_test) >= duration:
-                                    df_test = df_test.iloc[:duration]
-                                    st.session_state['df_test'] = df_test  # Сохраняем актуальный df_test
-                                else:
-                                    df_test = None  # Недостаточно данных для метрик
-                                    st.session_state['df_test'] = None  # Очищаем старый df_test
+
+                    # Формируем обучающую выборку по выбранному целевому признаку
+                    df_train = training_df[[target_sensor]].copy()
+                    if isinstance(df_train, pd.DataFrame):
+                        df_train = df_train.rename(columns={str(target_sensor): 'sensor'})
+                    if not isinstance(df_train.index, pd.DatetimeIndex):
+                        st.error("Индекс обучающей выборки должен быть типа DatetimeIndex")
+                        return
+
+                    # Формируем тестовую часть из рабочей версии данных, чтобы она соответствовала тому, что видно на графике
+                    end_training_time = df_train.index.max() if df_train is not None and not df_train.empty else None
+                    df_test = None
+                    work_all = st.session_state.get('working_df', df)
+                    if work_all is not None and not work_all.empty and end_training_time is not None:
+                        df_test = work_all[work_all.index > end_training_time][[target_sensor]]
+                        if isinstance(df_test, pd.DataFrame):
+                            df_test = df_test.rename(columns={str(target_sensor): 'sensor'})
+                            if len(df_test) >= duration:
+                                df_test = df_test.iloc[:duration]
+                                st.session_state['df_test'] = df_test
                             else:
                                 df_test = None
                                 st.session_state['df_test'] = None
                         else:
                             df_test = None
                             st.session_state['df_test'] = None
-                        if isinstance(df_train, pd.DataFrame):
-                            payload = create_model_payload(
-                                auto_params=auto_params,
-                                horizon=duration,
-                                df_train=df_train,
-                                hyper_params=params
-                            )
-                        else:
-                            st.error("Ошибка: df_train должен быть DataFrame")
-                            return
-                        try:
-                            model_request = ModelRequest(**payload)
-                            
-                            # Показываем индикатор загрузки
-                            with st.spinner("Выполняется прогнозирование..."):
-                                response = asyncio.run(get_prediction(api_url, model_request.dict(), option))
-                            
-                            if response.status_code == 200:
-                                result = response.json()
-                                st.session_state['forecast_result'] = result
-                                
-                                # Метрики считаем только если df_test не None и длина совпадает с duration
-                                if df_test is not None and len(df_test) == duration:
-                                    try:
-                                        df_predict = pd.read_json(StringIO(result["df_predict"]), orient='table')
-                                        # Приводим имя столбца к 'sensor', если нужно
-                                        if 'sensor' not in df_predict.columns and len(df_predict.columns) == 1:
-                                            df_predict = df_predict.rename(columns={str(df_predict.columns[0]): 'sensor'})
-                                        
-                                        # Удаляем NaN и inf значения перед отправкой на метрики
-                                        df_predict = df_predict.replace([np.inf, -np.inf, np.nan], 0)
-                                        df_test = df_test.replace([np.inf, -np.inf, np.nan], 0)
-                                        metrics_payload = create_metrics_payload(df_predict=df_predict, df_test=df_test)
+                    else:
+                        df_test = None
+                        st.session_state['df_test'] = None
 
-                                        metrics_request = MetricsRequest(
-                                            df_predict=str(metrics_payload["df_predict"]),
-                                            df_test=str(metrics_payload["df_test"])
-                                        )
-                                        
-                                        # Показываем индикатор загрузки для метрик
-                                        with st.spinner("Рассчитываются метрики..."):
-                                            metrics_response = asyncio.run(get_metrics(api_url, metrics_request.dict()))
-                                        
-                                        if metrics_response.status_code == 200:
-                                            metrics_result = metrics_response.json()
-                                            st.session_state['metrics_result'] = metrics_result
-                                        else:
-                                            st.warning(f"Не удалось получить метрики: {metrics_response.status_code}")
-                                    except Exception as e:
-                                        st.warning(f"Ошибка при расчете метрик: {str(e)}")
-                                
-                                st.success(f"Прогноз успешно выполнен для {target_sensor}!")
-                                st.rerun()
-                            else:
-                                st.error(f"Ошибка API: {response.status_code} - {response.text}")
-                        except Exception as e:
-                            st.error(f"Ошибка при выполнении прогноза: {str(e)}")
+                    # Формируем полезную нагрузку для API
+                    payload = create_model_payload(
+                        auto_params=auto_params,
+                        horizon=duration,
+                        df_train=df_train,
+                        hyper_params=params
+                    )
+
+                    try:
+                        model_request = ModelRequest(**payload)
+                        with st.spinner("Выполняется прогнозирование"):
+                            response = asyncio.run(get_prediction(api_url, model_request.dict(), option))
+
+                        if response.status_code == 200:
+                            result = response.json()
+                            st.session_state['forecast_result'] = result
+
+                            # Запрашиваем метрики, только если тестовая часть сформирована полностью
+                            if df_test is not None and len(df_test) == duration:
+                                try:
+                                    df_predict = pd.read_json(StringIO(result["df_predict"]), orient='table')
+                                    if 'sensor' not in df_predict.columns and len(df_predict.columns) == 1:
+                                        df_predict = df_predict.rename(columns={str(df_predict.columns[0]): 'sensor'})
+                                    df_predict = df_predict.replace([np.inf, -np.inf, np.nan], 0)
+                                    df_test_clean = df_test.replace([np.inf, -np.inf, np.nan], 0)
+                                    metrics_payload = create_metrics_payload(df_predict=df_predict, df_test=df_test_clean)
+                                    metrics_request = MetricsRequest(
+                                        df_predict=str(metrics_payload["df_predict"]),
+                                        df_test=str(metrics_payload["df_test"])
+                                    )
+                                    with st.spinner("Рассчитываются метрики"):
+                                        metrics_response = asyncio.run(get_metrics(api_url, metrics_request.dict()))
+                                    if metrics_response.status_code == 200:
+                                        st.session_state['metrics_result'] = metrics_response.json()
+                                    else:
+                                        st.warning(f"Не удалось получить метрики. Код ответа {metrics_response.status_code}")
+                                except Exception as e:
+                                    st.warning(f"Ошибка при расчете метрик. Подробности {e}")
+
+                            st.success(f"Прогноз выполнен для {target_sensor}")
+                            st.rerun()
+                        else:
+                            st.error(f"Ошибка API. Код ответа {response.status_code}. Текст {response.text}")
+                    except Exception as e:
+                        st.error(f"Ошибка при выполнении прогноза. Подробности {e}")
                 else:
-                    st.error("Ошибка: Загрузите DataFrame, выберите данные для обучения и целевую переменную.")
-        forecast_settings_dialog()  # Вызов диалога
+                    st.error("Загрузите данные, выберите обучающую выборку и целевую переменную")
+
+        forecast_settings_dialog()
 
 def render_forecasting_page(df: pd.DataFrame, outlier_percentage: float) -> None:
     """
@@ -487,6 +561,10 @@ def render_forecasting_page(df: pd.DataFrame, outlier_percentage: float) -> None
             st.session_state['last_df_hash'] = current_df_hash
             st.session_state['original_df'] = df  # Сохраняем оригинальный DataFrame
             st.session_state['is_limited_view'] = True  # Флаг, что отображается ограниченный вид
+            # Рабочая копия исходных данных. Сюда будут применяться преобразования ряда.
+            st.session_state['working_df'] = df.copy()
+            # Флаг факта изменения исходного ряда. Управляет показом кнопки возврата.
+            st.session_state['is_series_modified'] = False
             # Сброс результатов прогнозирования, метрик и тестовых данных
             for key in ['forecast_result', 'metrics_result', 'df_test', 'duration']:
                 if key in st.session_state:
