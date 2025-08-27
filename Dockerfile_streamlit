@@ -11,17 +11,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем наши файлы в контейнер
 COPY dashboard dashboard/
 COPY main.py .
+COPY .streamlit.example .streamlit
 
-
-RUN mkdir -p .streamlit
+#RUN mkdir -p .streamlit
 
 EXPOSE $PORT
 
 # Создаем config.toml
-RUN echo "[server]\n\
-port = ${PORT:-8501}\n\
-fileWatcherType = \"poll\"" > .streamlit/config.toml
-
-RUN echo "api_url = \"http://time_series_api:8000/api/\"" > .streamlit/secrets.toml
+#RUN echo "[server]\n\
+#port = ${PORT:-8501}\n\
+#fileWatcherType = \"poll\"" > .streamlit/config.toml
+#
+#RUN echo "api_url = \"http://time_series_api:8000/api/\"" > .streamlit/secrets.toml
 
 CMD sh -c "streamlit run main.py --server.port $PORT --server.address 0.0.0.0"
