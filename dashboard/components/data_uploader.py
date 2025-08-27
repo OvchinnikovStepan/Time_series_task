@@ -58,7 +58,7 @@ def upload() -> Tuple[Optional[pd.DataFrame], Optional[float]]:
     if upload_file is not None:
         try:
             # Загружаем CSV
-            df = pd.read_csv(upload_file)
+            df = pd.read_csv(upload_file, sep=None, engine="python")
 
             # Удаляем полные дубликаты строк
             df = df.drop_duplicates()
