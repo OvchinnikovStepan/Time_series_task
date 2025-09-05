@@ -6,6 +6,18 @@ from datetime import datetime
 import numpy as np
 from scipy import stats
 
+def _align_to_index_tz(ts_like, idx: pd.DatetimeIndex) -> pd.Timestamp:
+    ts = pd.to_datetime(ts_like)
+    tz = getattr(idx, "tz", None)
+    if tz is not None:
+        if ts.tzinfo is None:
+            return ts.tz_localize(tz)
+        return ts.tz_convert(tz)
+    else:
+        if ts.tzinfo is not None:
+            return ts.tz_localize(None)
+        return ts
+
 def init_plot_session_state():
     defaults = {
         'dragmode': 'select',
@@ -25,17 +37,22 @@ def build_plot(filtered_df, selected_sensors, flag, selected_points_data=None):
     outliers_mask = {}
     for sensor in selected_sensors:
         if sensor in filtered_df.columns:
-            z_scores = np.abs(stats.zscore(filtered_df[sensor].dropna()))
-            outliers_mask[sensor] = z_scores > 3
+            z = filtered_df[sensor]
+            z_scores = np.abs(stats.zscore(z.dropna()))
+            m = pd.Series(False, index=filtered_df.index)
+            m.loc[z.dropna().index] = (z_scores > 3)
+            outliers_mask[sensor] = m
     selected_x = set()
     if flag and selected_points_data:
-        selected_x = set(x for sensor in selected_points_data for x, _ in selected_points_data.get(sensor, []))
+        for sensor, pts in selected_points_data.items():
+            for x, _ in pts:
+                selected_x.add(_align_to_index_tz(x, filtered_df.index))
     for sensor in selected_sensors:
         if sensor in filtered_df.columns:
             y = filtered_df[sensor]
             mask_selected = filtered_df.index.isin(selected_x) if selected_x else pd.Series(False, index=filtered_df.index)
             mask_outliers = outliers_mask.get(sensor, pd.Series(False, index=filtered_df.index))
-            marker_symbol = ['cross' if outlier else 'circle' for outlier in mask_outliers]
+            marker_symbol = np.where(mask_outliers.values, 'cross', 'circle')
             fig.add_trace(go.Scatter(
                 x=filtered_df.index,
                 y=y,
@@ -46,7 +63,7 @@ def build_plot(filtered_df, selected_sensors, flag, selected_points_data=None):
                     color=colors[sensor],
                     size=10,
                     symbol=marker_symbol,
-                    opacity=1.0 if any(mask_outliers) else 0.7
+                    opacity=1.0 if mask_outliers.any() else 0.7
                 ),
                 opacity=0.7,
                 showlegend=True
@@ -75,26 +92,25 @@ def build_plot(filtered_df, selected_sensors, flag, selected_points_data=None):
 def process_selected_points(selected_points, filtered_df, selected_sensors):
     new_selected_points = {}
     for point in selected_points:
-        x = pd.Timestamp(point['x']).tz_localize(None)
+        x = _align_to_index_tz(point['x'], filtered_df.index)
         if x in filtered_df.index:
             for i, sensor in enumerate(selected_sensors):
-                if sensor in filtered_df.columns and point['curveNumber'] == i:
+                if sensor in filtered_df.columns and point.get('curveNumber') == i:
                     y = filtered_df.at[x, sensor]
-                    if not np.isnan(y):
-                        if sensor not in new_selected_points:
-                            new_selected_points[sensor] = []
+                    if not pd.isna(y):
+                        new_selected_points.setdefault(sensor, [])
                         if not any(px == x and py == y for px, py in new_selected_points[sensor]):
                             new_selected_points[sensor].append((x, y))
     return new_selected_points
 
 def prepare_training_df(filtered_df, training_points, training_sensors):
     export_data = {}
-    timestamps = sorted(set(x for sensor in training_points for x, _ in training_points.get(sensor, [])))
+    timestamps = sorted({_align_to_index_tz(x, filtered_df.index) for sensor in training_points for x, _ in training_points.get(sensor, [])})
     for sensor in training_sensors:
         if sensor in training_points:
-            values = [next((y for px, y in training_points[sensor] if px == x), np.nan) for x in timestamps]
+            values = [next((y for px, y in training_points[sensor] if _align_to_index_tz(px, filtered_df.index) == t), np.nan) for t in timestamps]
         else:
-            values = [filtered_df.at[x, sensor] if x in filtered_df.index else np.nan for x in timestamps]
+            values = [filtered_df.at[t, sensor] if t in filtered_df.index else np.nan for t in timestamps]
         export_data[sensor] = values
     return pd.DataFrame(export_data, index=timestamps)
 
@@ -111,17 +127,22 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
     with plot_placeholder:
         if flag:
             fig = build_plot(filtered_df, selected_sensors, flag, st.session_state.selected_points)
-            selected_points = plotly_events(fig, select_event=True, override_height=420, click_event=False, key=f"plotly_{st.session_state.plot_key}")
+            selected_points = plotly_events(
+                fig, select_event=True, override_height=420, click_event=False,
+                key=f"plotly_{st.session_state.plot_key}"
+            )
         else:
             fig = build_plot(filtered_df, selected_sensors, flag)
-            plotly_events(fig, select_event=False, override_height=420, click_event=False, key=f"plotly_{st.session_state.plot_key}")
+            plotly_events(fig, select_event=False, override_height=420, click_event=False,
+                          key=f"plotly_{st.session_state.plot_key}")
     training_df = None
     if flag and 'selected_points' in locals() and selected_points:
         st.session_state.selected_points = process_selected_points(selected_points, filtered_df, selected_sensors)
         st.session_state.plot_key += 1
         with plot_placeholder:
             fig = build_plot(filtered_df, selected_sensors, flag, st.session_state.selected_points)
-            plotly_events(fig, select_event=True, override_height=420, click_event=False, key=f"plotly_{st.session_state.plot_key}")
+            plotly_events(fig, select_event=True, override_height=420, click_event=False,
+                          key=f"plotly_{st.session_state.plot_key}")
     main_col = st.container()
     with main_col:
         if flag and st.session_state.selected_points:
@@ -132,10 +153,8 @@ def plot_interactive_with_selection(filtered_df: pd.DataFrame, selected_sensors:
                     st.session_state.training_points = {}
                     st.session_state.training_sensors = []
                     st.session_state.training_triggered = False
-                    # Очищаем результаты прогнозирования
                     for key in ['forecast_result', 'metrics_result', 'df_test', 'duration']:
-                        if key in st.session_state:
-                            del st.session_state[key]
+                        st.session_state.pop(key, None)
                     st.session_state.plot_key += 1
                     st.rerun()
             with col2:

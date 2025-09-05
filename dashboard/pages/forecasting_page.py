@@ -542,31 +542,42 @@ def render_forecasting_page(df: pd.DataFrame, outlier_percentage: float) -> None
     Рендерит страницу "Прогнозирование"
     """
     st.set_page_config(page_title="Прогнозирование", layout="wide")
-    # Не отображаем информацию о датасете, если df is None
+
+    # Если данных нет — просто сообщение (не чистим всю сессию)
     if df is None:
-        st.session_state.clear()
+        st.info("Данные не загружены. Загрузите файл или запросите через API.")
         return
+
     render_data_overview(df, outlier_percentage)
+
     if df is not None:
-        # Используем более простой способ хеширования DataFrame
-        current_df_hash = hash(str(df.shape) + str(df.columns.tolist()) + str(df.index[-10:].tolist()) if len(df) > 10 else str(df.index.tolist()))
+        current_df_hash = hash(
+            str(df.shape) + str(df.columns.tolist()) +
+            (str(df.index[-10:].tolist()) if len(df) > 10 else str(df.index.tolist()))
+        )
         if st.session_state.get('last_df_hash') != current_df_hash:
-            st.session_state.clear()
-            # При загрузке нового файла ограничиваем данные последними 500 точками
+            # Сбрасываем только локальные ключи этой страницы
+            for key in [
+                'filtered_df', 'selected_sensors', 'sensor_editor_temp',
+                'target_sensor', 'original_df',
+                'is_limited_view', 'working_df', 'is_series_modified',
+                'forecast_result', 'metrics_result', 'df_test', 'duration',
+                'reset_counter'
+            ]:
+                st.session_state.pop(key, None)
+
+            # Первичная инициализация
             limited_df = limit_data_to_last_points(df, 500)
             st.session_state['filtered_df'] = limited_df
             st.session_state['selected_sensors'] = df.columns.tolist()
             st.session_state['sensor_editor_temp'] = df.columns.tolist()
             st.session_state['target_sensor'] = df.columns[0]
             st.session_state['last_df_hash'] = current_df_hash
-            st.session_state['original_df'] = df  # Сохраняем оригинальный DataFrame
-            st.session_state['is_limited_view'] = True  # Флаг, что отображается ограниченный вид
-            # Рабочая копия исходных данных. Сюда будут применяться преобразования ряда.
+            st.session_state['original_df'] = df
+            st.session_state['is_limited_view'] = True
             st.session_state['working_df'] = df.copy()
-            # Флаг факта изменения исходного ряда. Управляет показом кнопки возврата.
             st.session_state['is_series_modified'] = False
-            # Сброс результатов прогнозирования, метрик и тестовых данных
+            # Сброс результатов прогнозирования/метрик
             for key in ['forecast_result', 'metrics_result', 'df_test', 'duration']:
-                if key in st.session_state:
-                    del st.session_state[key]
+                st.session_state.pop(key, None)
     render_forecasting_main_panel(df)

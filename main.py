@@ -43,6 +43,16 @@ with header_cols[0]:
 with header_cols[1]:
     df, outlier_percentage = upload()
 
+if df is not None:
+    st.session_state.current_dataset = df
+if outlier_percentage is not None:
+    st.session_state.current_outliers = outlier_percentage
+
+if df is None:
+    df = st.session_state.get("current_dataset")
+if outlier_percentage is None:
+    outlier_percentage = st.session_state.get("current_outliers")
+
 if page == "Прогнозирование":
     render_forecasting_page(df, outlier_percentage)
 
